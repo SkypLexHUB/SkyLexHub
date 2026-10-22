@@ -4,11 +4,11 @@ local HttpService = game:GetService("HttpService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local Window = WindUI:CreateWindow({
-    Title = "SkyLexHuB",
+    Title = "Macro Recorder Mobile",
     Icon = "rbxassetid://4483345998",
     Author = "Auto Macro",
     Folder = "MacroSettings",
-    Size = UDim2.fromOffset(550, 360),
+    Size = UDim2.fromOffset(550, 380),
     Transparent = true,
     Theme = "Dark",
 })
@@ -24,22 +24,30 @@ local recordedEvents = {}
 local startTime = 0
 local macroFileName = "default_macro"
 
+-- สร้าง Label สำหรับแสดงสถานะบน UI
+local StatusLabel = MainTab:Paragraph({
+    Title = "สถานะระบบ",
+    Content = "สถานะ: พร้อมใช้งาน (ยังไม่ได้อัด)",
+})
+
 local function startRecording()
     recordedEvents = {}
     startTime = tick()
     isRecording = true
+    StatusLabel:SetDesc("สถานะ: กำลังอัดหน้าจอ... (จิ้มหน้าจอได้เลย)")
     WindUI:Notify({
         Title = "Macro Recorder",
-        Content = "เริ่มบันทึกการสัมผัสหน้าจอ...",
+        Content = "เริ่มบันทึกการสัมผัสหน้าจอแล้ว!",
         Duration = 2,
     })
 end
 
 local function stopRecording()
     isRecording = false
+    StatusLabel:SetDesc("สถานะ: หยุดอัดแล้ว (บันทึกได้ " .. #recordedEvents .. " คำสั่ง)")
     WindUI:Notify({
         Title = "Macro Recorder",
-        Content = "หยุดบันทึกแล้ว! บันทึกคำสั่งได้ทั้งหมด " .. #recordedEvents .. " รายการ",
+        Content = "หยุดบันทึก! ได้ทั้งหมด " .. #recordedEvents .. " รายการ",
         Duration = 3,
     })
 end
@@ -49,13 +57,14 @@ local function playMacro()
     if #recordedEvents == 0 then
         WindUI:Notify({
             Title = "Macro Recorder",
-            Content = "ไม่มีข้อมูล Macro ให้เล่น กรุณาอัดหรือโหลดไฟล์ก่อน",
+            Content = "ไม่มีข้อมูล Macro ให้เล่น!",
             Duration = 3,
         })
         return
     end
 
     isPlaying = true
+    StatusLabel:SetDesc("สถานะ: กำลังเล่น Macro ซ้ำ...")
     WindUI:Notify({
         Title = "Macro Recorder",
         Content = "กำลังเล่น Macro...",
@@ -85,6 +94,7 @@ local function playMacro()
             end
         end
         isPlaying = false
+        StatusLabel:SetDesc("สถานะ: เล่น Macro เสร็จสิ้น")
         WindUI:Notify({
             Title = "Macro Recorder",
             Content = "เล่น Macro เสร็จสิ้น",
@@ -95,6 +105,7 @@ end
 
 local function stopMacro()
     isPlaying = false
+    StatusLabel:SetDesc("สถานะ: หยุดการเล่นแล้ว")
     WindUI:Notify({
         Title = "Macro Recorder",
         Content = "หยุดการเล่น Macro แล้ว",
@@ -126,7 +137,7 @@ local function saveMacro()
     else
         WindUI:Notify({
             Title = "Save Failed",
-            Content = "เกิดข้อผิดพลาดในการบันทึก: " .. tostring(err),
+            Content = "เกิดข้อผิดพลาด: " .. tostring(err),
             Duration = 3,
         })
     end
@@ -148,22 +159,24 @@ local function loadMacro()
     end)
 
     if success then
+        StatusLabel:SetDesc("สถานะ: โหลดไฟล์สำเร็จ (" .. #recordedEvents .. " คำสั่ง)")
         WindUI:Notify({
             Title = "Load Successful",
-            Content = "โหลดไฟล์ " .. macroFileName .. ".json สำเร็จ! (" .. #recordedEvents .. " รายการ)",
+            Content = "โหลดสำเร็จ! (" .. #recordedEvents .. " รายการ)",
             Duration = 3,
         })
     else
         WindUI:Notify({
             Title = "Load Failed",
-            Content = "ไม่สามารถโหลดไฟล์ได้: " .. tostring(err),
+            Content = "โหลดไม่สำเร็จ: " .. tostring(err),
             Duration = 3,
         })
     end
 end
 
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed or not isRecording then return end
+-- ดักจับการสัมผัสหน้าจอ (เอาเกม Processed ออกเพื่อให้เก็บบันทึกได้ทุกจุด)
+UserInputService.InputBegan:Connect(function(input)
+    if not isRecording then return end
 
     if input.UserInputType == Enum.UserInputType.Keyboard then
         table.insert(recordedEvents, {
@@ -184,8 +197,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input, gameProcessed)
-    if gameProcessed or not isRecording then return end
+UserInputService.InputEnded:Connect(function(input)
+    if not isRecording then return end
 
     if input.UserInputType == Enum.UserInputType.Keyboard then
         table.insert(recordedEvents, {
@@ -230,7 +243,7 @@ MainTab:Button({
 })
 
 MainTab:Button({
-    Title = "หยุดเล่น (Stop)",
+    Title, Title = "หยุดเล่น (Stop)",
     Desc = "ยกเลิกการเล่น Macro ทันที",
     Callback = function()
         stopMacro()
