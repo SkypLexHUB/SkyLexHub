@@ -4,11 +4,12 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Camera = Workspace.CurrentCamera
 
--- สร้าง ScreenGui สำหรับแสดงวงกลมจุดที่มาโครกด
 local VisualGui = Instance.new("ScreenGui")
 VisualGui.Name = "MacroVisualizer"
 VisualGui.IgnoreGuiInset = true
@@ -21,7 +22,6 @@ if not VisualGui.Parent then
     VisualGui.Parent = PlayerGui
 end
 
--- ฟังก์ชันแสดงวงกลมจุดที่กด
 local function showTouchIndicator(x, y)
     local dot = Instance.new("Frame")
     dot.Size = UDim2.fromOffset(40, 40)
@@ -58,7 +58,7 @@ local Window = WindUI:CreateWindow({
 })
 
 local MainTab = Window:Tab({
-    Title = "Macro Controls",
+    Title = "Macro Co",
     Icon = "play",
 })
 
@@ -95,31 +95,30 @@ local function stopRecording()
     })
 end
 
--- ฟังก์ชันจำลองการกดปุ่ม UI โดยตรง (แก้ปัญหาจิ้มแล้วไม่ติดบนมือถือ)
-local function simulateClick(x, y)
+local function simulateClick(xPercent, yPercent)
+    local viewportSize = Camera.ViewportSize
+    local x = xPercent * viewportSize.X
+    local y = yPercent * viewportSize.Y
+
     showTouchIndicator(x, y)
     
-    -- ค้นหาปุ่ม UI ทั้งหมดที่อยู่ใต้พิกัดที่นิ้วจิ้ม
     local guiObjects = PlayerGui:GetGuiObjectsAtPosition(x, y)
     for _, guiObject in ipairs(guiObjects) do
         if guiObject:IsA("GuiButton") and guiObject.Active then
-            -- สั่งจำลองการกดปุ่มนั้นๆ โดยตรง
             if firesignal then
                 firesignal(guiObject.Activated)
                 firesignal(guiObject.MouseButton1Click)
             else
-                -- สำรองเผื่อ Executor ไม่มี firesignal
                 local success = pcall(function()
                     guiObject.Activated:Fire()
                 end)
                 if not success then
-                    -- ถ้ากดผ่านสัญญาณไม่ได้ ให้จำลองการกดผ่าน Mouse/Touch Event ของตัวปุ่ม
                     for _, conn in ipairs(getconnections(guiObject.Activated)) do
                         conn.Function()
                     end
                 end
             end
-            break -- กดปุ่มบนสุดที่เจอแล้วหยุด
+            break
         end
     end
 end
@@ -162,9 +161,8 @@ local function playMacro()
                     VirtualInputManager:SendKeyEvent(event.state, keyCode, false, game)
                 end
             elseif event.type == "Touch" then
-                -- ทำงานเฉพาะตอนกดลง (state == true) เพื่อสั่งคลิกปุ่ม UI
                 if event.state then
-                    simulateClick(event.x, event.y)
+                    simulateClick(event.xPercent, event.yPercent)
                 end
             end
         end
@@ -261,10 +259,12 @@ UserInputService.InputBegan:Connect(function(input)
         })
     elseif input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
         local pos = input.Position
+        local viewportSize = Camera.ViewportSize
+        
         table.insert(recordedEvents, {
             type = "Touch",
-            x = pos.X,
-            y = pos.Y,
+            xPercent = pos.X / viewportSize.X,
+            yPercent = pos.Y / viewportSize.Y,
             state = true,
             delay = tick() - startTime
         })
@@ -283,10 +283,12 @@ UserInputService.InputEnded:Connect(function(input)
         })
     elseif input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
         local pos = input.Position
+        local viewportSize = Camera.ViewportSize
+        
         table.insert(recordedEvents, {
             type = "Touch",
-            x = pos.X,
-            y = pos.Y,
+            xPercent = pos.X / viewportSize.X,
+            yPercent = pos.Y / viewportSize.Y,
             state = false,
             delay = tick() - startTime
         })
