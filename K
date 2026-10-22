@@ -1,0 +1,268 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local Window = WindUI:CreateWindow({
+    Title = "SkyLexHuB",
+    Icon = "rbxassetid://4483345998",
+    Author = "Auto Macro",
+    Folder = "MacroSettings",
+    Size = UDim2.fromOffset(550, 360),
+    Transparent = true,
+    Theme = "Dark",
+})
+
+local MainTab = Window:Tab({
+    Title = "Macro Controls",
+    Icon = "play",
+})
+
+local isRecording = false
+local isPlaying = false
+local recordedEvents = {}
+local startTime = 0
+local macroFileName = "default_macro"
+
+local function startRecording()
+    recordedEvents = {}
+    startTime = tick()
+    isRecording = true
+    WindUI:Notify({
+        Title = "Macro Recorder",
+        Content = "เริ่มบันทึกการสัมผัสหน้าจอ...",
+        Duration = 2,
+    })
+end
+
+local function stopRecording()
+    isRecording = false
+    WindUI:Notify({
+        Title = "Macro Recorder",
+        Content = "หยุดบันทึกแล้ว! บันทึกคำสั่งได้ทั้งหมด " .. #recordedEvents .. " รายการ",
+        Duration = 3,
+    })
+end
+
+local function playMacro()
+    if isRecording then return end
+    if #recordedEvents == 0 then
+        WindUI:Notify({
+            Title = "Macro Recorder",
+            Content = "ไม่มีข้อมูล Macro ให้เล่น กรุณาอัดหรือโหลดไฟล์ก่อน",
+            Duration = 3,
+        })
+        return
+    end
+
+    isPlaying = true
+    WindUI:Notify({
+        Title = "Macro Recorder",
+        Content = "กำลังเล่น Macro...",
+        Duration = 2,
+    })
+
+    task.spawn(function()
+        local playStartTime = tick()
+        for i, event in ipairs(recordedEvents) do
+            if not isPlaying then break end
+
+            local targetTime = playStartTime + event.delay
+            local waitTime = targetTime - tick()
+            if waitTime > 0 then
+                task.wait(waitTime)
+            end
+
+            if not isPlaying then break end
+
+            if event.type == "Keyboard" then
+                local keyCode = Enum.KeyCode[event.key]
+                if keyCode then
+                    VirtualInputManager:SendKeyEvent(event.state, keyCode, false, game)
+                end
+            elseif event.type == "Touch" then
+                VirtualInputManager:SendTouchEvent(0, event.x, event.y, event.state, game)
+            end
+        end
+        isPlaying = false
+        WindUI:Notify({
+            Title = "Macro Recorder",
+            Content = "เล่น Macro เสร็จสิ้น",
+            Duration = 2,
+        })
+    end)
+end
+
+local function stopMacro()
+    isPlaying = false
+    WindUI:Notify({
+        Title = "Macro Recorder",
+        Content = "หยุดการเล่น Macro แล้ว",
+        Duration = 2,
+    })
+end
+
+local function saveMacro()
+    if #recordedEvents == 0 then
+        WindUI:Notify({
+            Title = "Error",
+            Content = "ไม่มีข้อมูลให้บันทึก",
+            Duration = 2,
+        })
+        return
+    end
+
+    local success, err = pcall(function()
+        local json = HttpService:JSONEncode(recordedEvents)
+        writefile(macroFileName .. ".json", json)
+    end)
+
+    if success then
+        WindUI:Notify({
+            Title = "Save Successful",
+            Content = "บันทึกไฟล์ " .. macroFileName .. ".json เรียบร้อย!",
+            Duration = 3,
+        })
+    else
+        WindUI:Notify({
+            Title = "Save Failed",
+            Content = "เกิดข้อผิดพลาดในการบันทึก: " .. tostring(err),
+            Duration = 3,
+        })
+    end
+end
+
+local function loadMacro()
+    if not isfile(macroFileName .. ".json") then
+        WindUI:Notify({
+            Title = "Error",
+            Content = "ไม่พบไฟล์ " .. macroFileName .. ".json",
+            Duration = 3,
+        })
+        return
+    end
+
+    local success, err = pcall(function()
+        local content = readfile(macroFileName .. ".json")
+        recordedEvents = HttpService:JSONDecode(content)
+    end)
+
+    if success then
+        WindUI:Notify({
+            Title = "Load Successful",
+            Content = "โหลดไฟล์ " .. macroFileName .. ".json สำเร็จ! (" .. #recordedEvents .. " รายการ)",
+            Duration = 3,
+        })
+    else
+        WindUI:Notify({
+            Title = "Load Failed",
+            Content = "ไม่สามารถโหลดไฟล์ได้: " .. tostring(err),
+            Duration = 3,
+        })
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or not isRecording then return end
+
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        table.insert(recordedEvents, {
+            type = "Keyboard",
+            key = input.KeyCode.Name,
+            state = true,
+            delay = tick() - startTime
+        })
+    elseif input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local pos = input.Position
+        table.insert(recordedEvents, {
+            type = "Touch",
+            x = pos.X,
+            y = pos.Y,
+            state = true,
+            delay = tick() - startTime
+        })
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if gameProcessed or not isRecording then return end
+
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        table.insert(recordedEvents, {
+            type = "Keyboard",
+            key = input.KeyCode.Name,
+            state = false,
+            delay = tick() - startTime
+        })
+    elseif input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local pos = input.Position
+        table.insert(recordedEvents, {
+            type = "Touch",
+            x = pos.X,
+            y = pos.Y,
+            state = false,
+            delay = tick() - startTime
+        })
+    end
+end)
+
+MainTab:Section({ Title = "การควบคุมอัด / เล่น" })
+
+MainTab:Toggle({
+    Title = "เริ่มอัด Macro (Record)",
+    Desc = "เปิดเพื่อเริ่มบันทึกการสัมผัสหน้าจอ",
+    Value = false,
+    Callback = function(Value)
+        if Value then
+            startRecording()
+        else
+            stopRecording()
+        end
+    end,
+})
+
+MainTab:Button({
+    Title = "เล่น Macro (Play)",
+    Desc = "เล่นสคริปต์มาโครที่บันทึกไว้",
+    Callback = function()
+        playMacro()
+    end,
+})
+
+MainTab:Button({
+    Title = "หยุดเล่น (Stop)",
+    Desc = "ยกเลิกการเล่น Macro ทันที",
+    Callback = function()
+        stopMacro()
+    end,
+})
+
+MainTab:Section({ Title = "ระบบเซฟ & โหลด (Save / Load)" })
+
+MainTab:Input({
+    Title = "ชื่อไฟล์ Macro",
+    Desc = "ใส่ชื่อไฟล์สำหรับบันทึก/โหลด (ไม่ต้องใส่ .json)",
+    Value = "default_macro",
+    Placeholder = "เช่น my_farming_macro",
+    Callback = function(Text)
+        if Text and Text ~= "" then
+            macroFileName = Text
+        end
+    end,
+})
+
+MainTab:Button({
+    Title = "บันทึกไฟล์ (Save Macro)",
+    Desc = "บันทึกข้อมูลมาโครลงในตัว Executor",
+    Callback = function()
+        saveMacro()
+    end,
+})
+
+MainTab:Button({
+    Title = "โหลดไฟล์ (Load Macro)",
+    Desc = "โหลดข้อมูลมาโครจากไฟล์ที่เคยบันทึกไว้",
+    Callback = function()
+        loadMacro()
+    end,
+})
