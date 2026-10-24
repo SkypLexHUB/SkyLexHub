@@ -1,0 +1,75 @@
+-- โหลด WindUI Library
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- สร้างหน้าต่าง UI (Window)
+local Window = WindUI:CreateWindow({
+    Title = "Auto Farm Hub",
+    Icon = "rbxassetid://10723407389",
+    Author = "WindUI User",
+    Folder = "AutoBuySellFolder",
+    Size = UDim2.fromOffset(580, 460),
+    Transparent = true,
+    Theme = "Dark",
+})
+
+-- สร้าง Tab หลัก
+local Tab = Window:Tab({
+    Title = "Main",
+    Icon = "rbxassetid://10723407389"
+})
+
+-- บริการและ Remote Events
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local events = ReplicatedStorage:WaitForChild("Events")
+
+local sellStrengthEvent = events:WaitForChild("SellStrength")
+local uiActionRemote = events:WaitForChild("UIAction")
+
+-- สถานะการทำงาน
+local featuresActive = false
+
+-- สร้าง Toggle ใน WindUI เพื่อเปิด/ปิดฟังก์ชัน
+Tab:Toggle({
+    Title = "Auto Features (Sell & Buy)",
+    Description = "เปิด/ปิด ออโต้ขายพลัง และซื้อไอเทมที่ดีที่สุดอัตโนมัติ",
+    Default = false,
+    Callback = function(State)
+        featuresActive = State
+    end
+})
+
+-- 1. ลูปสำหรับออโต้ขาย
+task.spawn(function()
+    while true do
+        if featuresActive then
+            pcall(function()
+                sellStrengthEvent:FireServer()
+            end)
+        end
+        task.wait(1) -- ปรับความเร็วในการขาย (วินาที)
+    end
+end)
+
+-- 2. ลูปสำหรับออโต้ซื้อ (Sabers, DNA, Classes)
+task.spawn(function()
+    while true do
+        if featuresActive then
+            pcall(function()
+                uiActionRemote:FireServer("BuyBestSaber")
+                uiActionRemote:FireServer("BuyBestDNA")
+                uiActionRemote:FireServer("BuyBestClass")
+            end)
+        end
+        task.wait(2) -- ปรับความเร็วในการซื้อ (วินาที)
+    end
+end)
+
+-- แจ้งเตือนเมื่อโหลดสคริปต์สำเร็จ
+WindUI:Notify({
+    Title = "Script Loaded",
+    Content = "WindUI Auto Buy & Sell initialized successfully!",
+    Duration = 3
+})
