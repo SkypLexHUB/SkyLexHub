@@ -2,7 +2,7 @@ Hub Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
    Name = "Aim Assist & ESP HubV3",
-   LoadingTitle = "Rayfield Interface",
+   LoadingTitle = "AimV4",
    LoadingSubtitle = "by User",
    ConfigurationSaving = {
       Enabled = true,
