@@ -3,11 +3,11 @@ local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/rel
 
 -- สร้างหน้าต่าง UI หลัก
 local Window = WindUI:CreateWindow({
-    Title = "Aim & ESP Menu",
+    Title = "Aim & ESP",
     Icon = "rbxassetid://10723415303",
     Author = "Script User",
     Folder = "WindUI_Config",
-    Size = UDim2.fromOffset(550, 420),
+    Size = UDim2.fromOffset(550, 450),
     Transparent = true,
     Theme = "Dark",
     Resizable = true,
@@ -28,6 +28,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 local AimEnabled, ESPEnabled, LineEnabled = false, false, false
 local WallCheck = true -- true = ล็อกเฉพาะคนที่มองเห็น, false = ล็อกทะลุกำแพง
+local InstantSnap = true -- true = หันจอแบบฟึบฟับทันที, false = ใช้ความนุ่มตาม Slider
 local Smoothness = 1 -- 1 = ล็อกทันที, ค่าน้อยลง = หมุนนุ่มขึ้น
 local CurrentTarget = nil
 local ESPObjects = {}
@@ -135,6 +136,15 @@ MainTab:Toggle({
 })
 
 MainTab:Toggle({
+    Title = "Instant Snap (ฟึบฟับ)",
+    Description = "หันจอไปที่หัวศัตรูทันทีแบบ 100% (ข้ามความนุ่ม)",
+    Default = true,
+    Callback = function(state)
+        InstantSnap = state
+    end
+})
+
+MainTab:Toggle({
     Title = "ESP Highlight",
     Description = "แสดงกรอบเรืองแสงรอบตัวผู้เล่น",
     Default = false,
@@ -164,7 +174,7 @@ MainTab:Toggle({
 
 MainTab:Slider({
     Title = "Aim Smoothness",
-    Description = "ปรับความนุ่มนวลในการล็อกกล้อง (ค่าน้อย = นุ่มมาก)",
+    Description = "ปรับความนุ่ม (จะทำงานต่อเมื่อปิด Instant Snap)",
     Min = 0.1,
     Max = 1,
     Default = 1,
@@ -258,13 +268,17 @@ RunService:BindToRenderStep("AimLockHead", Enum.RenderPriority.Camera.Value + 1,
 
     if head then
         local goal = CFrame.lookAt(Camera.CFrame.Position, head.Position)
-        Camera.CFrame = Camera.CFrame:Lerp(goal, Smoothness)
+        if InstantSnap then
+            Camera.CFrame = goal -- หันแบบฟึบฟับทันทีใน 1 เฟรม
+        else
+            Camera.CFrame = Camera.CFrame:Lerp(goal, Smoothness) -- หันแบบนุ่มตาม Slider
+        end
     end
 end)
 
 -- แจ้งเตือนเมื่อโหลดสำเร็จ
 WindUI:Notify({
     Title = "Script Loaded",
-    Content = "Aim & ESP Menu initialized successfully!",
+    Content = "Instant Snap (ฟึบฟับ) Ready!",
     Duration = 3,
 })
