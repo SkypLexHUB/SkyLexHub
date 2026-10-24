@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 
--- ดึง Remote Events จาก Dump
+-- ดึง Remote Events
 local Events = ReplicatedStorage:WaitForChild("Events")
 local SwingSaberRemote = Events:WaitForChild("SwingSaber")
 local SellStrengthRemote = Events:WaitForChild("SellStrength")
@@ -44,24 +44,24 @@ task.spawn(function()
     end
 end)
 
--- 3. ระบบ Auto Buy Best Sabers (ซื้อดาบที่ดีที่สุด)
+-- 3. ระบบ Auto Buy Weapons (ซื้อดาบออโต้)
 task.spawn(function()
     while true do
         if getgenv().AutoBuySaber then
             pcall(function()
-                UIActionRemote:FireServer("BuyBestSaber")
+                UIActionRemote:FireServer("BuyAllWeapons")
             end)
         end
         task.wait(2)
     end
 end)
 
--- 4. ระบบ Auto Buy Best DNA (ซื้อกระเป๋า DNA ที่ดีที่สุด)
+-- 4. ระบบ Auto Buy DNAs (ซื้อกระเป๋า DNA ออโต้)
 task.spawn(function()
     while true do
         if getgenv().AutoBuyDNA then
             pcall(function()
-                UIActionRemote:FireServer("BuyBestDNA")
+                UIActionRemote:FireServer("BuyAllDNAs")
             end)
         end
         task.wait(2)
@@ -73,7 +73,7 @@ task.spawn(function()
     while true do
         if getgenv().AutoBuyClass then
             pcall(function()
-                UIActionRemote:FireServer("BuyBestClass")
+                UIActionRemote:FireServer("BuyAllClasses")
             end)
         end
         task.wait(2)
@@ -81,7 +81,7 @@ task.spawn(function()
 end)
 
 -- โหลด WindUI Library
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
     Title = "Saber Simulator | Pro Hub",
@@ -126,23 +126,23 @@ MainTab:Toggle({
 })
 
 MainTab:Section({
-    Title = "ระบบซื้อของออโต้"
+    Title = "ระบบซื้อของออโต้ (Fixed)"
 })
 
--- ปุ่มเปิด/ปิด Auto Buy Best Sabers
+-- ปุ่มเปิด/ปิด Auto Buy Weapons
 MainTab:Toggle({
-    Title = "Auto Buy Best Sabers (ซื้อดาบที่ดีที่สุด)",
-    Desc = "ซื้อดาบที่ดีที่สุดโดยอัตโนมัติ",
+    Title = "Auto Buy Weapons (ซื้อดาบออโต้)",
+    Desc = "ใช้คำสั่ง BuyAllWeapons",
     Value = false,
     Callback = function(Value)
         getgenv().AutoBuySaber = Value
     end,
 })
 
--- ปุ่มเปิด/ปิด Auto Buy Best DNA
+-- ปุ่มเปิด/ปิด Auto Buy DNAs
 MainTab:Toggle({
-    Title = "Auto Buy Best DNA (ซื้อกระเป๋า DNA ดีที่สุด)",
-    Desc = "ซื้อกระเป๋าเก็บพลังที่ดีที่สุดอัตโนมัติ",
+    Title = "Auto Buy DNAs (ซื้อกระเป๋า DNA ออโต้)",
+    Desc = "ใช้คำสั่ง BuyAllDNAs",
     Value = false,
     Callback = function(Value)
         getgenv().AutoBuyDNA = Value
@@ -152,7 +152,7 @@ MainTab:Toggle({
 -- ปุ่มเปิด/ปิด Auto Buy Class
 MainTab:Toggle({
     Title = "Auto Buy Class (ซื้อคลาส/ยศออโต้)",
-    Desc = "ซื้อยศหรือคลาสสูงสุดโดยอัตโนมัติ",
+    Desc = "ใช้คำสั่ง BuyAllClasses",
     Value = false,
     Callback = function(Value)
         getgenv().AutoBuyClass = Value
@@ -161,6 +161,6 @@ MainTab:Toggle({
 
 WindUI:Notify({
     Title = "แจ้งเตือน",
-    Content = "โหลดสคริปต์ WindUI สำเร็จ!",
+    Content = "โหลดสคริปต์ WindUI (Fixed DNAs) สำเร็จ!",
     Duration = 5
 })
