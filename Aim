@@ -30,6 +30,9 @@ local WallCheck = true
 local InstantSnap = true
 local Smoothness = 1
 
+-- ตัวแปรเลือกระบบเป้าหมาย (Aim Part: Head หรือ Body)
+local SelectedAimPart = "Head" -- ค่าเริ่มต้นล็อกที่หัว
+
 -- ตัวแปร Aim Circle (FOV)
 local FOVEnabled = false
 local FOVRadius = 150
@@ -220,15 +223,15 @@ for _, p in ipairs(Players:GetPlayers()) do HookPlayer(p) end
 Players.PlayerAdded:Connect(HookPlayer)
 Players.PlayerRemoving:Connect(RemoveESP)
 
--- ===== หาเป้าหมาย =====
-local function IsVisible(character, head)
+-- ===== หาเป้าหมาย (รองรับ Aim Part: Head หรือ Body) =====
+local function IsVisible(character, part)
     local Camera = workspace.CurrentCamera
     if not Camera then return false end
     local origin = Camera.CFrame.Position
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
     params.FilterDescendantsInstances = { LocalPlayer.Character, Camera }
-    local result = workspace:Raycast(origin, head.Position - origin, params)
+    local result = workspace:Raycast(origin, part.Position - origin, params)
     return result ~= nil and result.Instance:IsDescendantOf(character)
 end
 
@@ -241,24 +244,26 @@ local function GetNearestTarget()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local character = player.Character
-            local head = character and character:FindFirstChild("Head")
+            -- เลือกส่วนที่จะล็อกตามที่ผู้เล่นเลือกใน Dropdown (Head หรือ HumanoidRootPart)
+            local targetPart = character and character:FindFirstChild(SelectedAimPart == "Head" and "Head" or "HumanoidRootPart")
             local hum = character and character:FindFirstChildOfClass("Humanoid")
-            if head and hum and hum.Health > 0 then
-                local d = (head.Position - Camera.CFrame.Position).Magnitude
+            
+            if targetPart and hum and hum.Health > 0 then
+                local d = (targetPart.Position - Camera.CFrame.Position).Magnitude
                 
                 if FOVEnabled then
-                    local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                    local pos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                     if onScreen then
                         local screenPos = Vector2.new(pos.X, pos.Y)
                         local distFromCenter = (screenPos - screenCenter).Magnitude
                         if distFromCenter <= FOVRadius then
-                            if d < nearestDist and (not WallCheck or IsVisible(character, head)) then
+                            if d < nearestDist and (not WallCheck or IsVisible(character, targetPart)) then
                                 nearest, nearestDist = player, d
                             end
                         end
                     end
                 else
-                    if d < nearestDist and (not WallCheck or IsVisible(character, head)) then
+                    if d < nearestDist and (not WallCheck or IsVisible(character, targetPart)) then
                         nearest, nearestDist = player, d
                     end
                 end
@@ -279,6 +284,17 @@ MainTab:Toggle({
         if not AimEnabled then
             CurrentTarget = nil
         end
+    end
+})
+
+-- เพิ่ม Dropdown สำหรับเลือกส่วนที่จะล็อก (Head / Body)
+MainTab:Dropdown({
+    Title = "Aim Part",
+    Description = "เลือกส่วนที่ต้องการให้ล็อกเป้าหมาย",
+    Values = { "Head", "Body" },
+    Default = "Head",
+    Callback = function(value)
+        SelectedAimPart = value
     end
 })
 
@@ -306,7 +322,7 @@ MainTab:Colorpicker({
 
 MainTab:Toggle({
     Title = "Instant Snap (ฟึบฟับ)",
-    Description = "หันจอไปที่หัวศัตรูทันทีแบบ 100%",
+    Description = "หันจอไปที่เป้าหมายทันทีแบบ 100%",
     Default = true,
     Callback = function(state)
         InstantSnap = state
@@ -475,20 +491,19 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ===== ล็อกกล้องที่ Head (Aim Assist & ShiftLock) =====
+-- ===== ล็อกกล้องที่ส่วนที่เลือก (Aim Assist & ShiftLock) =====
 RunService:BindToRenderStep("AimLockHead", Enum.RenderPriority.Camera.Value + 1, function()
-    -- ทำงานเมื่อเปิด AimAssist หรือ ShiftLock
     if not (AimEnabled or ShiftLockEnabled) then return end
     local Camera = workspace.CurrentCamera
     if not Camera then return end
 
     CurrentTarget = GetNearestTarget()
-    local head = CurrentTarget
+    local targetPart = CurrentTarget
         and CurrentTarget.Character
-        and CurrentTarget.Character:FindFirstChild("Head")
+        and CurrentTarget.Character:FindFirstChild(SelectedAimPart == "Head" and "Head" or "HumanoidRootPart")
 
-    if head then
-        local goal = CFrame.lookAt(Camera.CFrame.Position, head.Position)
+    if targetPart then
+        local goal = CFrame.lookAt(Camera.CFrame.Position, targetPart.Position)
         if InstantSnap or ShiftLockEnabled then
             Camera.CFrame = goal -- ดีดล็อกเน้นๆ แบบโหดๆ
         else
@@ -500,6 +515,6 @@ end)
 -- แจ้งเตือนเมื่อโหลดสำเร็จ
 WindUI:Notify({
     Title = "Script Loaded",
-    Content = "ShiftLock & Aim Circle Ready!",
+    Content = "Aim Part Selector Added & Ready!",
     Duration = 3,
 })
