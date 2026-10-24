@@ -1,5 +1,5 @@
 -- โหลด WindUI Library
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+Local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 -- สร้างหน้าต่าง UI หลัก
 local Window = WindUI:CreateWindow({
