@@ -1,0 +1,280 @@
+-- โหลด WindUI Library
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- สร้างหน้าต่าง UI หลัก
+local Window = WindUI:CreateWindow({
+    Title = "Aim & ESP Menu",
+    Icon = "rbxassetid://10723415303", -- ไอคอน (สามารถเปลี่ยนได้)
+    Author = "Script User",
+    Folder = "WindUI_Config",
+    Size = UDim2.fromOffset(550, 400),
+    Transparent = true,
+    Theme = "Dark",
+    Resizable = true,
+})
+
+-- สร้าง Tab
+local MainTab = Window:Tab({
+    Title = "Combat & Visuals",
+    Icon = "crosshair",
+})
+
+-- ตัวแปรระบบ
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local AimEnabled, ESPEnabled, LineEnabled = false, false, false
+local TeamCheck = true
+local Smoothness = 1 -- 1 = ล็อกทันที, ค่าน้อยลง (เช่น 0.3) = หมุนนุ่มขึ้น
+local CurrentTarget = nil
+local ESPObjects = {}
+
+-- เลเยอร์สำหรับเส้น (IgnoreGuiInset ให้พิกัดตรงกับหน้าจอ)
+local LineGui = Instance.new("ScreenGui")
+LineGui.Name = "LineESP"
+LineGui.ResetOnSpawn = false
+LineGui.IgnoreGuiInset = true
+LineGui.Parent = PlayerGui
+
+-- ===== Helpers =====
+local function IsEnemy(player)
+    if player == LocalPlayer then return false end
+    if TeamCheck and player.Team and player.Team == LocalPlayer.Team then
+        return false
+    end
+    return true
+end
+
+local function RemoveESP(player)
+    local obj = ESPObjects[player]
+    if obj then
+        obj.Highlight:Destroy()
+        obj.Billboard:Destroy()
+        obj.Line:Destroy()
+        ESPObjects[player] = nil
+    end
+end
+
+local function CreateESP(player)
+    RemoveESP(player)
+    if not IsEnemy(player) then return end
+
+    local character = player.Character
+    local head = character and character:FindFirstChild("Head")
+    if not head then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = character
+    highlight.FillColor = Color3.fromRGB(255, 60, 60)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.new(1, 1, 1)
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = character
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Adornee = head
+    billboard.Size = UDim2.fromOffset(140, 36)
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = head
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.fromScale(1, 1)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextStrokeTransparency = 0.4
+    label.TextScaled = true
+    label.Text = player.DisplayName
+    label.Parent = billboard
+
+    local line = Instance.new("Frame")
+    line.AnchorPoint = Vector2.new(0.5, 0.5)
+    line.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+    line.BorderSizePixel = 0
+    line.Visible = false
+    line.Parent = LineGui
+
+    ESPObjects[player] = {
+        Highlight = highlight,
+        Billboard = billboard,
+        Label = label,
+        Line = line,
+    }
+end
+
+local function RefreshESP()
+    for player in pairs(ESPObjects) do
+        RemoveESP(player)
+    end
+    if not ESPEnabled then return end
+    for _, player in ipairs(Players:GetPlayers()) do
+        CreateESP(player)
+    end
+end
+
+local function HookPlayer(player)
+    player.CharacterAdded:Connect(function()
+        if ESPEnabled then
+            task.wait(0.5)
+            CreateESP(player)
+        end
+    end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do HookPlayer(p) end
+Players.PlayerAdded:Connect(HookPlayer)
+Players.PlayerRemoving:Connect(RemoveESP)
+
+-- ===== WindUI Components (Toggles & Sliders) =====
+
+MainTab:Toggle({
+    Title = "Aim Assist",
+    Description = "ล็อกเป้าหมายไปที่หัวศัตรูที่มองเห็นอัตโนมัติ",
+    Default = false,
+    Callback = function(state)
+        AimEnabled = state
+        if not AimEnabled then
+            CurrentTarget = nil
+        end
+    end
+})
+
+MainTab:Toggle({
+    Title = "ESP Highlight",
+    Description = "แสดงกรอบเรืองแสงรอบตัวศัตรู",
+    Default = false,
+    Callback = function(state)
+        ESPEnabled = state
+        RefreshESP()
+    end
+})
+
+MainTab:Toggle({
+    Title = "Line Tracers",
+    Description = "แสดงเส้นตรงชี้ไปยังตำแหน่งศัตรู",
+    Default = false,
+    Callback = function(state)
+        LineEnabled = state
+    end
+})
+
+MainTab:Toggle({
+    Title = "Team Check",
+    Description = "ไม่ทำงานกับเพื่อนร่วมทีมเดียวกัน",
+    Default = true,
+    Callback = function(state)
+        TeamCheck = state
+        RefreshESP()
+    end
+})
+
+MainTab:Slider({
+    Title = "Aim Smoothness",
+    Description = "ปรับความนุ่มนวลในการล็อกกล้อง (ค่าน้อย = นุ่มมาก)",
+    Min = 0.1,
+    Max = 1,
+    Default = 1,
+    Increment = 0.05,
+    Callback = function(value)
+        Smoothness = value
+    end
+})
+
+-- ===== หาเป้าหมาย =====
+local function IsVisible(character, head)
+    local Camera = workspace.CurrentCamera
+    if not Camera then return false end
+    local origin = Camera.CFrame.Position
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = { LocalPlayer.Character, Camera }
+    local result = workspace:Raycast(origin, head.Position - origin, params)
+    return result ~= nil and result.Instance:IsDescendantOf(character)
+end
+
+local function GetNearestVisibleTarget()
+    local Camera = workspace.CurrentCamera
+    if not Camera then return nil end
+    local nearest, nearestDist = nil, math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if IsEnemy(player) then
+            local character = player.Character
+            local head = character and character:FindFirstChild("Head")
+            local hum = character and character:FindFirstChildOfClass("Humanoid")
+            if head and hum and hum.Health > 0 then
+                local d = (head.Position - Camera.CFrame.Position).Magnitude
+                if d < nearestDist and IsVisible(character, head) then
+                    nearest, nearestDist = player, d
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+-- ===== อัปเดต ESP + เส้น (ทุกเฟรม) =====
+RunService.RenderStepped:Connect(function()
+    local Camera = workspace.CurrentCamera
+    if not (ESPEnabled and Camera) then return end
+
+    local viewport = Camera.ViewportSize
+    local origin = Vector2.new(viewport.X / 2, viewport.Y)
+
+    for player, obj in pairs(ESPObjects) do
+        local character = player.Character
+        local head = character and character:FindFirstChild("Head")
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+
+        if head then
+            local d = (head.Position - Camera.CFrame.Position).Magnitude
+            obj.Label.Text = string.format("%s [%dm]", player.DisplayName, d)
+        end
+
+        if LineEnabled and root then
+            local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
+            if onScreen and pos.Z > 0 then
+                local to = Vector2.new(pos.X, pos.Y)
+                local delta = to - origin
+                obj.Line.Size = UDim2.fromOffset(delta.Magnitude, 2)
+                obj.Line.Position = UDim2.fromOffset(
+                    (origin.X + to.X) / 2,
+                    (origin.Y + to.Y) / 2
+                )
+                obj.Line.Rotation = math.deg(math.atan2(delta.Y, delta.X))
+                obj.Line.Visible = true
+            else
+                obj.Line.Visible = false
+            end
+        else
+            obj.Line.Visible = false
+        end
+    end
+end)
+
+-- ===== ล็อกกล้องที่ Head (หลังกล้องอัปเดตปกติ) =====
+RunService:BindToRenderStep("AimLockHead", Enum.RenderPriority.Camera.Value + 1, function()
+    if not AimEnabled then return end
+    local Camera = workspace.CurrentCamera
+    if not Camera then return end
+
+    CurrentTarget = GetNearestVisibleTarget()
+    local head = CurrentTarget
+        and CurrentTarget.Character
+        and CurrentTarget.Character:FindFirstChild("Head")
+
+    if head then
+        local camPos = Camera.CFrame.Position
+        local goal = CFrame.lookAt(camPos, head.Position)
+        Camera.CFrame = Camera.CFrame:Lerp(goal, Smoothness)
+    end
+end)
+
+-- แจ้งเตือนเมื่อโหลดสำเร็จ
+WindUI:Notify({
+    Title = "Script Loaded",
+    Content = "WindUI Menu initialized successfully!",
+    Duration = 3,
+})
