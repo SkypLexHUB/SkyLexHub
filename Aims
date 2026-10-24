@@ -1,5 +1,5 @@
 -- โหลด WindUI Library
-Local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 -- สร้างหน้าต่าง UI หลัก
 local Window = WindUI:CreateWindow({
@@ -138,7 +138,7 @@ local menuVisible = true
 MenuButton.Activated:Connect(function()
     menuVisible = not menuVisible
     Window:Toggle(menuVisible)
-    MenuButton.Text = menuVisible and "Menu: ON" : "Menu: OFF"
+    MenuButton.Text = menuVisible and "Menu: ON" or "Menu: OFF"
     Stroke.Color = menuVisible and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
 end)
 
@@ -241,8 +241,7 @@ local function GetNearestTarget()
     local nearest, nearestDist = nil, math.huge
     local screenCenter = Camera.ViewportSize / 2
 
-    -- ฟังก์ชันตรวจสอบตัวละครแต่ละตัว
-    local function CheckCandidate(character, nameTag)
+    local function CheckCandidate(character)
         if not character or character == LocalPlayer.Character then return end
         
         local hum = character:FindFirstChildOfClass("Humanoid")
@@ -270,24 +269,21 @@ local function GetNearestTarget()
         end
     end
 
-    -- 1. เช็คจาก Players ปกติ
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            CheckCandidate(player.Character, player.DisplayName)
+            CheckCandidate(player.Character)
         end
     end
 
-    -- 2. เช็คจาก Model ทั้งหมดใน Workspace (กรณีแมพวางผู้เล่น/ตัวละครไว้ใน Workspace ตรงๆ)
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
-            -- ป้องกันไม่ให้ซ้ำกับตัว LocalPlayer เอง
             if not LocalPlayer.Character or not obj:IsAncestorOf(LocalPlayer.Character) then
-                CheckCandidate(obj, obj.Name)
+                CheckCandidate(obj)
             end
         end
     end
 
-    return nearest -- คืนค่าเป็น Part เป้าหมาย (Head หรือ RootPart) โดยตรง
+    return nearest
 end
 
 -- ===== MainTab Controls (Combat) =====
@@ -304,7 +300,6 @@ MainTab:Toggle({
     end
 })
 
--- Dropdown เลือกส่วนที่จะล็อก
 MainTab:Dropdown({
     Title = "Aim Part",
     Description = "เลือกส่วนที่ต้องการให้ล็อกเป้าหมาย",
@@ -367,7 +362,6 @@ MainTab:Slider({
     end
 })
 
--- ตั้งค่า Aim Circle (FOV) ใน Tab Combat
 MainTab:Toggle({
     Title = "Aim Circle (FOV)",
     Description = "แสดงวงกลมขอบเขตการล็อกเป้าหมายกลางจอ",
@@ -458,12 +452,10 @@ RunService.RenderStepped:Connect(function()
 
     local viewportCenter = Camera.ViewportSize / 2
 
-    -- อัปเดตตำแหน่งวงกลม FOV
     if FOVEnabled then
         FOVCircle.Position = viewportCenter
     end
 
-    -- อัปเดตเป้าเล็ง ShiftLock กลางจอ
     if ShiftLockEnabled then
         rotAngle = (rotAngle + 2) % 360
         ShiftLockOuter.Position = viewportCenter
@@ -512,7 +504,7 @@ RunService:BindToRenderStep("AimLockHead", Enum.RenderPriority.Camera.Value + 1,
     local Camera = workspace.CurrentCamera
     if not Camera then return end
 
-    local targetPart = GetNearestTarget() -- คืนค่าเป็น BasePart ที่จะล็อกโดยตรง
+    local targetPart = GetNearestTarget()
 
     if targetPart then
         local goal = CFrame.lookAt(Camera.CFrame.Position, targetPart.Position)
@@ -527,6 +519,6 @@ end)
 -- แจ้งเตือนเมื่อโหลดสำเร็จ
 WindUI:Notify({
     Title = "Script Loaded",
-    Content = "Workspace Scanning & Aim Part Ready!",
+    Content = "Fixed & Ready to Use!",
     Duration = 3,
 })
