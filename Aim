@@ -7,7 +7,7 @@ local Window = WindUI:CreateWindow({
     Icon = "rbxassetid://10723415303",
     Author = "Script User",
     Folder = "WindUI_Config",
-    Size = UDim2.fromOffset(580, 520),
+    Size = UDim2.fromOffset(580, 540),
     Transparent = true,
     Theme = "Dark",
     Resizable = true,
@@ -35,6 +35,10 @@ local FOVEnabled = false
 local FOVRadius = 150
 local FOVColor = Color3.fromRGB(255, 255, 255)
 
+-- ตัวแปร ShiftLock (CamLock)
+local ShiftLockEnabled = false
+local ShiftLockColor = Color3.fromRGB(0, 255, 255) -- สีฟ้าไซเบอร์เท่ๆ
+
 local CurrentTarget = nil
 local ESPObjects = {}
 
@@ -42,7 +46,7 @@ local ESPObjects = {}
 local HighlightColor = Color3.fromRGB(255, 60, 60)
 local LineColor = Color3.fromRGB(255, 60, 60)
 
--- สร้างวงกลม FOV (Aim Circle) กลางจอ
+-- สร้างวงกลม FOV (Aim Circle)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Visible = false
 FOVCircle.Filled = false
@@ -50,6 +54,22 @@ FOVCircle.Radius = FOVRadius
 FOVCircle.Color = FOVColor
 FOVCircle.Thickness = 1.5
 FOVCircle.Transparency = 0.8
+
+-- สร้าง ShiftLock Crosshair กลางจอ (แบบหมุนเท่ๆ)
+local ShiftLockOuter = Drawing.new("Circle")
+ShiftLockOuter.Visible = false
+ShiftLockOuter.Filled = false
+ShiftLockOuter.Radius = 25
+ShiftLockOuter.Color = ShiftLockColor
+ShiftLockOuter.Thickness = 2
+ShiftLockOuter.Transparency = 0.9
+
+local ShiftLockDot = Drawing.new("Circle")
+ShiftLockDot.Visible = false
+ShiftLockDot.Filled = true
+ShiftLockDot.Radius = 4
+ShiftLockDot.Color = ShiftLockColor
+ShiftLockDot.Transparency = 1
 
 -- เลเยอร์สำหรับเส้น ESP
 local LineGui = Instance.new("ScreenGui")
@@ -200,7 +220,7 @@ for _, p in ipairs(Players:GetPlayers()) do HookPlayer(p) end
 Players.PlayerAdded:Connect(HookPlayer)
 Players.PlayerRemoving:Connect(RemoveESP)
 
--- ===== หาเป้าหมาย (รองรับ Aim Circle / FOV) =====
+-- ===== หาเป้าหมาย =====
 local function IsVisible(character, head)
     local Camera = workspace.CurrentCamera
     if not Camera then return false end
@@ -226,7 +246,6 @@ local function GetNearestTarget()
             if head and hum and hum.Health > 0 then
                 local d = (head.Position - Camera.CFrame.Position).Magnitude
                 
-                -- ตรวจสอบเงื่อนไข Aim Circle (FOV) ถ้าเปิดใช้งาน
                 if FOVEnabled then
                     local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
                     if onScreen then
@@ -260,6 +279,28 @@ MainTab:Toggle({
         if not AimEnabled then
             CurrentTarget = nil
         end
+    end
+})
+
+MainTab:Toggle({
+    Title = "ShiftLock (CamLock กลางจอ)",
+    Description = "ล็อกกล้องเล็งเป้าหมายอัตโนมัติพร้อมเป้าเล็งกลางจอสุดเท่",
+    Default = false,
+    Callback = function(state)
+        ShiftLockEnabled = state
+        ShiftLockOuter.Visible = state
+        ShiftLockDot.Visible = state
+    end
+})
+
+MainTab:Colorpicker({
+    Title = "ShiftLock Crosshair Color",
+    Description = "ปรับสีเป้าเล็ง ShiftLock กลางจอ",
+    Default = Color3.fromRGB(0, 255, 255),
+    Callback = function(color)
+        ShiftLockColor = color
+        ShiftLockOuter.Color = color
+        ShiftLockDot.Color = color
     end
 })
 
@@ -376,20 +417,32 @@ VisualsTab:Colorpicker({
     end
 })
 
--- ===== อัปเดต ESP + เส้น + วงกลม FOV (ทุกเฟรม) =====
+-- ===== อัปเดต ESP + เส้น + วงกลม FOV + ShiftLock Animation (ทุกเฟรม) =====
+local rotAngle = 0
 RunService.RenderStepped:Connect(function()
     local Camera = workspace.CurrentCamera
     if not Camera then return end
 
-    -- อัปเดตตำแหน่งวงกลม FOV ให้อยู่กลางจอเสมอ
+    local viewportCenter = Camera.ViewportSize / 2
+
+    -- อัปเดตตำแหน่งวงกลม FOV
     if FOVEnabled then
-        FOVCircle.Position = Camera.ViewportSize / 2
+        FOVCircle.Position = viewportCenter
+    end
+
+    -- อัปเดตเป้าเล็ง ShiftLock กลางจอ (พร้อมลูกเล่นการหมุนตัววงกลมแบบเท่ๆ)
+    if ShiftLockEnabled then
+        rotAngle = (rotAngle + 2) % 360
+        ShiftLockOuter.Position = viewportCenter
+        ShiftLockDot.Position = viewportCenter
+        
+        -- ทำอนูเมชันขยาย/หดเล็กน้อยตามจังหวะเวลา
+        ShiftLockOuter.Radius = 22 + math.sin(tick() * 5) * 3
     end
 
     if not ESPEnabled then return end
 
-    local viewport = Camera.ViewportSize
-    local origin = Vector2.new(viewport.X / 2, viewport.Y)
+    local origin = Vector2.new(viewportCenter.X, viewportCenter.Y * 2)
 
     for player, obj in pairs(ESPObjects) do
         local character = player.Character
@@ -422,9 +475,10 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ===== ล็อกกล้องที่ Head (Aim Assist) =====
+-- ===== ล็อกกล้องที่ Head (Aim Assist & ShiftLock) =====
 RunService:BindToRenderStep("AimLockHead", Enum.RenderPriority.Camera.Value + 1, function()
-    if not AimEnabled then return end
+    -- ทำงานเมื่อเปิด AimAssist หรือ ShiftLock
+    if not (AimEnabled or ShiftLockEnabled) then return end
     local Camera = workspace.CurrentCamera
     if not Camera then return end
 
@@ -435,8 +489,8 @@ RunService:BindToRenderStep("AimLockHead", Enum.RenderPriority.Camera.Value + 1,
 
     if head then
         local goal = CFrame.lookAt(Camera.CFrame.Position, head.Position)
-        if InstantSnap then
-            Camera.CFrame = goal
+        if InstantSnap or ShiftLockEnabled then
+            Camera.CFrame = goal -- ดีดล็อกเน้นๆ แบบโหดๆ
         else
             Camera.CFrame = Camera.CFrame:Lerp(goal, Smoothness)
         end
@@ -446,6 +500,6 @@ end)
 -- แจ้งเตือนเมื่อโหลดสำเร็จ
 WindUI:Notify({
     Title = "Script Loaded",
-    Content = "Aim Circle (FOV) Ready!",
+    Content = "ShiftLock & Aim Circle Ready!",
     Duration = 3,
 })
