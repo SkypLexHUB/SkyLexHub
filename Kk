@@ -25,7 +25,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local AimEnabled, ESPEnabled, LineEnabled, SilentAimEnabled = false, false, false, false
+local AimEnabled, ESPEnabled, LineEnabled, AutoShootEnabled = false, false, false, false
 local WallCheck = true
 local InstantSnap = true
 local Smoothness = 1
@@ -43,68 +43,126 @@ LineGui.ResetOnSpawn = false
 LineGui.IgnoreGuiInset = true
 LineGui.Parent = PlayerGui
 
--- ===== สร้างปุ่มลอยบนหน้าจอ (Floating Button) =====
+-- ===== สร้างปุ่มลอยบนหน้าจอ (Floating Buttons) =====
 local FloatingGui = Instance.new("ScreenGui")
 FloatingGui.Name = "FloatingMenuButton"
 FloatingGui.ResetOnSpawn = false
 FloatingGui.IgnoreGuiInset = true
 FloatingGui.Parent = PlayerGui
 
-local FloatButton = Instance.new("TextButton")
-FloatButton.Name = "ToggleBtn"
-FloatButton.Size = UDim2.fromOffset(110, 45)
-FloatButton.Position = UDim2.new(0, 20, 0.4, 0)
-FloatButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-FloatButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-FloatButton.TextSize = 14
-FloatButton.Font = Enum.Font.GothamBold
-FloatButton.Text = "Menu: OFF"
-FloatButton.Parent = FloatingGui
+-- 1. ปุ่มเปิด/ปิด เมนู WindUI
+local MenuButton = Instance.new("TextButton")
+MenuButton.Name = "MenuBtn"
+MenuButton.Size = UDim2.fromOffset(100, 40)
+MenuButton.Position = UDim2.new(0, 20, 0.4, 0)
+MenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MenuButton.TextSize = 13
+MenuButton.Font = Enum.Font.GothamBold
+MenuButton.Text = "Menu: ON"
+MenuButton.Parent = FloatingGui
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = FloatButton
+local Corner1 = Instance.new("UICorner", MenuButton)
+Corner1.CornerRadius = UDim.new(0, 8)
+local Stroke1 = Instance.new("UIStroke", MenuButton)
+Stroke1.Color = Color3.fromRGB(60, 255, 60)
+Stroke1.Thickness = 2
 
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(255, 60, 60)
-UIStroke.Thickness = 2
-UIStroke.Parent = FloatButton
+-- 2. ปุ่มยิงด่วน (Universal Shoot Button) บนหน้าจอ
+local ShootButton = Instance.new("TextButton")
+ShootButton.Name = "ShootBtn"
+ShootButton.Size = UDim2.fromOffset(110, 55)
+ShootButton.Position = UDim2.new(1, -130, 0.6, 0)
+ShootButton.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+ShootButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ShootButton.TextSize = 15
+ShootButton.Font = Enum.Font.GothamBold
+ShootButton.Text = "FIRE 🎯"
+ShootButton.Parent = FloatingGui
 
--- ทำให้ปุ่มลอยลากขยับได้ (รองรับมือถือและคอม)
-local dragging, dragInput, dragStart, startPos
-FloatButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = FloatButton.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
+local Corner2 = Instance.new("UICorner", ShootButton)
+Corner2.CornerRadius = UDim.new(0, 12)
+local Stroke2 = Instance.new("UIStroke", ShootButton)
+Stroke2.Color = Color3.fromRGB(255, 255, 255)
+Stroke2.Thickness = 2
 
-FloatButton.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
+-- ทำให้ปุ่มลากขยับได้ (รองรับมือถือและคอม)
+local function MakeDraggable(btn)
+    local dragging, dragInput, dragStart, startPos
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = btn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    btn.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
 
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        FloatButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
+MakeDraggable(MenuButton)
+MakeDraggable(ShootButton)
 
--- กดปุ่มลอยเพื่อเปิด/ปิด เมนูหลัก WindUI
+-- กดปุ่มเปิด/ปิด เมนูหลัก WindUI
 local menuVisible = true
-FloatButton.Activated:Connect(function()
+MenuButton.Activated:Connect(function()
     menuVisible = not menuVisible
     Window:Toggle(menuVisible)
-    FloatButton.Text = menuVisible and "Menu: ON" or "Menu: OFF"
-    UIStroke.Color = menuVisible and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
+    MenuButton.Text = menuVisible and "Menu: ON" or "Menu: OFF"
+    Stroke1.Color = menuVisible and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
+end)
+
+-- ฟังก์ชันกดปุ่มยิงบนจอ (ล็อกหัว + สั่งยิงปืนทันที ใช้ได้ทุกแมพ)
+ShootButton.MouseButton1Down:Connect(function()
+    local Camera = workspace.CurrentCamera
+    if not Camera then return end
+    
+    -- หาเป้าหมายที่ใกล้ที่สุดทันทีเมื่อกดปุ่ม
+    local target = nil
+    local nearestDist = math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local char = player.Character
+            local head = char and char:FindFirstChild("Head")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if head and hum and hum.Health > 0 then
+                local d = (head.Position - Camera.CFrame.Position).Magnitude
+                if d < nearestDist then
+                    nearest, nearestDist = player, d
+                    target = player
+                end
+            end
+        end
+    end
+    
+    if target and target.Character and target.Character:FindFirstChild("Head") then
+        local headPos = target.Character.Head.Position
+        -- หันจอไปที่หัวทันที
+        Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, headPos)
+        
+        -- สั่งใช้งานปืนที่ถืออยู่ (รองรับระบบปืนส่วนใหญ่ใน Roblox)
+        local char = LocalPlayer.Character
+        if char then
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then
+                tool:Activate()
+            end
+        end
+    end
 end)
 
 -- ===== ESP Helpers =====
@@ -231,15 +289,6 @@ MainTab:Toggle({
         if not AimEnabled then
             CurrentTarget = nil
         end
-    end
-})
-
-MainTab:Toggle({
-    Title = "Silent Aim",
-    Description = "ยิงโดนหัวศัตรูอัตโนมัติ (ข้ามปืนบั๊กบางแมพ)",
-    Default = false,
-    Callback = function(state)
-        SilentAimEnabled = state
     end
 })
 
@@ -382,55 +431,9 @@ RunService:BindToRenderStep("AimLockHead", Enum.RenderPriority.Camera.Value + 1,
     end
 end)
 
--- ===== Silent Aim (Safe Raycast Hook ป้องกันปืนขัดข้อง) =====
-local isProcessing = false
-
-pcall(function()
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-        if not SilentAimEnabled or isProcessing then
-            return oldNamecall(self, ...)
-        end
-        
-        local method = getnamecallmethod()
-        -- กรองให้ทำงานเฉพาะตอนยิงปืน (Raycast) และไม่ใช่การเช็คภายในตัวสคริปต์เอง
-        if self == workspace and method == "Raycast" then
-            isProcessing = true
-            local args = {...}
-            local target = GetNearestTarget()
-            
-            -- ป้องกันไม่ให้เปลี่ยนทิศทางเรย์แคสต์สุ่มสี่สุ่มห้าในแมพที่เช็คความสมบูรณ์ของกระสุน
-            if target and target.Character and target.Character:FindFirstChild("Head") then
-                local origin = args[1]
-                local headPos = target.Character.Head.Position
-                -- ตรวจสอบระยะทางว่าใกล้พอที่จะช่วยยิงไหม (ลดปัญหาปืนยิงไม่ออกในบางแมพ)
-                if (origin - headPos).Magnitude < 1500 then
-                    args[2] = (headPos - origin).Unit * (origin - headPos).Magnitude
-                end
-            end
-            
-            isProcessing = false
-            local result = oldNamecall(self, unpack(args))
-            -- ถ้าแมพนั้นเช็คผลลัพธ์ Raycast แล้วคืนค่า nil ให้ส่งค่าสำรอง (Fallback) ป้องกันปืนพัง
-            if not result and target and target.Character and target.Character:FindFirstChild("Head") then
-                -- สร้างตารางจำลอง RaycastResult พื้นฐานเพื่อให้เกมยอมรับการยิง
-                return {
-                    Position = target.Character.Head.Position,
-                    Instance = target.Character.Head,
-                    Material = Enum.Material.Flesh,
-                    Normal = Vector3.new(0, 1, 0)
-                }
-            end
-            return result
-        end
-        
-        return oldNamecall(self, ...)
-    end)
-end)
-
 -- แจ้งเตือนเมื่อโหลดสำเร็จ
 WindUI:Notify({
     Title = "Script Loaded",
-    Content = "Floating Button Added & Silent Aim Fixed!",
+    Content = "Universal On-Screen Shoot Button Ready!",
     Duration = 3,
 })
