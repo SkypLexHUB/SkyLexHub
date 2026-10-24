@@ -1,0 +1,166 @@
+-- ตรวจสอบว่าเกมถูกต้อง (Saber Simulator)
+if game.PlaceId ~= 3823781113 then
+    warn("กรุณาใช้สคริปต์นี้ในเกม Saber Simulator เท่านั้น!")
+end
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+-- ดึง Remote Events จาก Dump
+local Events = ReplicatedStorage:WaitForChild("Events")
+local SwingSaberRemote = Events:WaitForChild("SwingSaber")
+local SellStrengthRemote = Events:WaitForChild("SellStrength")
+local UIActionRemote = Events:WaitForChild("UIAction")
+
+-- ตัวแปรควบคุมสถานะ (Toggles)
+getgenv().AutoClick = false
+getgenv().AutoSell = false
+getgenv().AutoBuySaber = false
+getgenv().AutoBuyDNA = false
+getgenv().AutoBuyClass = false
+
+-- 1. ระบบ Auto Click (ฟันดาบออโต้)
+task.spawn(function()
+    while true do
+        if getgenv().AutoClick then
+            pcall(function()
+                SwingSaberRemote:FireServer()
+            end)
+        end
+        task.wait(0.05)
+    end
+end)
+
+-- 2. ระบบ Auto Sell Strength (ขายพลังออโต้)
+task.spawn(function()
+    while true do
+        if getgenv().AutoSell then
+            pcall(function()
+                SellStrengthRemote:FireServer()
+            end)
+        end
+        task.wait(1)
+    end
+end)
+
+-- 3. ระบบ Auto Buy Best Sabers (ซื้อดาบที่ดีที่สุด)
+task.spawn(function()
+    while true do
+        if getgenv().AutoBuySaber then
+            pcall(function()
+                UIActionRemote:FireServer("BuyBestSaber")
+            end)
+        end
+        task.wait(2)
+    end
+end)
+
+-- 4. ระบบ Auto Buy Best DNA (ซื้อกระเป๋า DNA ที่ดีที่สุด)
+task.spawn(function()
+    while true do
+        if getgenv().AutoBuyDNA then
+            pcall(function()
+                UIActionRemote:FireServer("BuyBestDNA")
+            end)
+        end
+        task.wait(2)
+    end
+end)
+
+-- 5. ระบบ Auto Buy Class (ซื้อยศ/คลาสออโต้)
+task.spawn(function()
+    while true do
+        if getgenv().AutoBuyClass then
+            pcall(function()
+                UIActionRemote:FireServer("BuyBestClass")
+            end)
+        end
+        task.wait(2)
+    end
+end)
+
+-- โหลด WindUI Library
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Window = WindUI:CreateWindow({
+    Title = "Saber Simulator | Pro Hub",
+    Icon = "rbxassetid://6031075931",
+    Author = "Pro Map",
+    Folder = "SaberSimHub",
+    Size = UDim2.fromOffset(580, 460),
+    Transparent = true,
+    Theme = "Dark",
+    SideBarWidth = 170,
+    HasOutline = true,
+})
+
+-- สร้าง Tab หลัก
+local MainTab = Window:Tab({
+    Title = "ฟังก์ชันหลัก",
+    Icon = "home",
+})
+
+MainTab:Section({
+    Title = "ระบบฟาร์มและอัปเกรดออโต้"
+})
+
+-- ปุ่มเปิด/ปิด Auto Click
+MainTab:Toggle({
+    Title = "Auto Click (ฟันดาบออโต้)",
+    Desc = "เปิด/ปิด การฟันดาบอัตโนมัติ",
+    Value = false,
+    Callback = function(Value)
+        getgenv().AutoClick = Value
+    end,
+})
+
+-- ปุ่มเปิด/ปิด Auto Sell Strength
+MainTab:Toggle({
+    Title = "Auto Sell Strength (ขายพลังออโต้)",
+    Desc = "เปิด/ปิด การนำพลังไปขายอัตโนมัติ",
+    Value = false,
+    Callback = function(Value)
+        getgenv().AutoSell = Value
+    end,
+})
+
+MainTab:Section({
+    Title = "ระบบซื้อของออโต้"
+})
+
+-- ปุ่มเปิด/ปิด Auto Buy Best Sabers
+MainTab:Toggle({
+    Title = "Auto Buy Best Sabers (ซื้อดาบที่ดีที่สุด)",
+    Desc = "ซื้อดาบที่ดีที่สุดโดยอัตโนมัติ",
+    Value = false,
+    Callback = function(Value)
+        getgenv().AutoBuySaber = Value
+    end,
+})
+
+-- ปุ่มเปิด/ปิด Auto Buy Best DNA
+MainTab:Toggle({
+    Title = "Auto Buy Best DNA (ซื้อกระเป๋า DNA ดีที่สุด)",
+    Desc = "ซื้อกระเป๋าเก็บพลังที่ดีที่สุดอัตโนมัติ",
+    Value = false,
+    Callback = function(Value)
+        getgenv().AutoBuyDNA = Value
+    end,
+})
+
+-- ปุ่มเปิด/ปิด Auto Buy Class
+MainTab:Toggle({
+    Title = "Auto Buy Class (ซื้อคลาส/ยศออโต้)",
+    Desc = "ซื้อยศหรือคลาสสูงสุดโดยอัตโนมัติ",
+    Value = false,
+    Callback = function(Value)
+        getgenv().AutoBuyClass = Value
+    end,
+})
+
+WindUI:Notify({
+    Title = "แจ้งเตือน",
+    Content = "โหลดสคริปต์ WindUI สำเร็จ!",
+    Duration = 5
+})
