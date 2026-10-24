@@ -21,21 +21,35 @@ local VisualsTab = Window:Tab({ Title = "Visuals (ESP)", Icon = "eye" })
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local AimEnabled, ESPEnabled, LineEnabled, SilentAimEnabled = false, false, false, false
+local AimEnabled, ESPEnabled, LineEnabled = false, false, false
 local WallCheck = true
 local InstantSnap = true
 local Smoothness = 1
+
+-- ตัวแปร Aim Circle (FOV)
+local FOVEnabled = false
+local FOVRadius = 150
+local FOVColor = Color3.fromRGB(255, 255, 255)
+
 local CurrentTarget = nil
 local ESPObjects = {}
 
--- ตัวแปรสี
+-- ตัวแปรสี ESP
 local HighlightColor = Color3.fromRGB(255, 60, 60)
 local LineColor = Color3.fromRGB(255, 60, 60)
+
+-- สร้างวงกลม FOV (Aim Circle) กลางจอ
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Filled = false
+FOVCircle.Radius = FOVRadius
+FOVCircle.Color = FOVColor
+FOVCircle.Thickness = 1.5
+FOVCircle.Transparency = 0.8
 
 -- เลเยอร์สำหรับเส้น ESP
 local LineGui = Instance.new("ScreenGui")
@@ -44,35 +58,7 @@ LineGui.ResetOnSpawn = false
 LineGui.IgnoreGuiInset = true
 LineGui.Parent = PlayerGui
 
--- ===== สร้างฟังก์ชันทำให้ปุ่มลากขยับได้ =====
-local function MakeDraggable(btn)
-    local dragging, dragInput, dragStart, startPos
-    btn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = btn.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-    btn.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-end
-
--- ===== สร้างปุ่มลอยเปิด/ปิดเมนูหลัก =====
+-- ===== สร้างปุ่มลอยเปิด/ปิดเมนูบนหน้าจอ =====
 local FloatingGui = Instance.new("ScreenGui")
 FloatingGui.Name = "FloatingMenuButton"
 FloatingGui.ResetOnSpawn = false
@@ -96,7 +82,33 @@ local Stroke = Instance.new("UIStroke", MenuButton)
 Stroke.Color = Color3.fromRGB(60, 255, 60)
 Stroke.Thickness = 2
 
-MakeDraggable(MenuButton)
+-- ทำให้ปุ่มลากขยับได้
+local dragging, dragInput, dragStart, startPos
+MenuButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MenuButton.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+MenuButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MenuButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
 
 -- กดปุ่มเพื่อเปิด/ปิด เมนูหลัก WindUI
 local menuVisible = true
@@ -105,53 +117,6 @@ MenuButton.Activated:Connect(function()
     Window:Toggle(menuVisible)
     MenuButton.Text = menuVisible and "Menu: ON" or "Menu: OFF"
     Stroke.Color = menuVisible and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
-end)
-
--- ===== สร้างปุ่มยิงบนหน้าจอ (ซ่อนอยู่จนกว่าจะเปิด Silent Aim) =====
-local ShootGui = Instance.new("ScreenGui")
-ShootGui.Name = "ShootButtonGui"
-ShootGui.ResetOnSpawn = false
-ShootGui.IgnoreGuiInset = true
-ShootGui.Enabled = false -- ซ่อนไว้ตอนเริ่มต้น
-ShootGui.Parent = PlayerGui
-
-local ShootButton = Instance.new("TextButton")
-ShootButton.Name = "ShootBtn"
-ShootButton.Size = UDim2.fromOffset(110, 55)
-ShootButton.Position = UDim2.new(1, -130, 0.6, 0)
-ShootButton.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-ShootButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ShootButton.TextSize = 15
-ShootButton.Font = Enum.Font.GothamBold
-ShootButton.Text = "FIRE 🎯"
-ShootButton.Parent = ShootGui
-
-local Corner2 = Instance.new("UICorner", ShootButton)
-Corner2.CornerRadius = UDim.new(0, 12)
-local Stroke2 = Instance.new("UIStroke", ShootButton)
-Stroke2.Color = Color3.fromRGB(255, 255, 255)
-Stroke2.Thickness = 2
-
-MakeDraggable(ShootButton)
-
--- กดปุ่มยิงเพื่อหันไปหาเป้าหมายและสั่งยิงปืน
-ShootButton.MouseButton1Down:Connect(function()
-    local Camera = workspace.CurrentCamera
-    if not Camera then return end
-    
-    local target = GetNearestTarget()
-    if target and target.Character and target.Character:FindFirstChild("Head") then
-        local headPos = target.Character.Head.Position
-        Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, headPos)
-    end
-    
-    local char = LocalPlayer.Character
-    if char then
-        local tool = char:FindFirstChildOfClass("Tool")
-        if tool then
-            tool:Activate()
-        end
-    end
 end)
 
 -- ===== ESP Helpers =====
@@ -235,7 +200,7 @@ for _, p in ipairs(Players:GetPlayers()) do HookPlayer(p) end
 Players.PlayerAdded:Connect(HookPlayer)
 Players.PlayerRemoving:Connect(RemoveESP)
 
--- ===== หาเป้าหมาย =====
+-- ===== หาเป้าหมาย (รองรับ Aim Circle / FOV) =====
 local function IsVisible(character, head)
     local Camera = workspace.CurrentCamera
     if not Camera then return false end
@@ -247,10 +212,12 @@ local function IsVisible(character, head)
     return result ~= nil and result.Instance:IsDescendantOf(character)
 end
 
-function GetNearestTarget()
+local function GetNearestTarget()
     local Camera = workspace.CurrentCamera
     if not Camera then return nil end
     local nearest, nearestDist = nil, math.huge
+    local screenCenter = Camera.ViewportSize / 2
+
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local character = player.Character
@@ -258,8 +225,23 @@ function GetNearestTarget()
             local hum = character and character:FindFirstChildOfClass("Humanoid")
             if head and hum and hum.Health > 0 then
                 local d = (head.Position - Camera.CFrame.Position).Magnitude
-                if d < nearestDist and (not WallCheck or IsVisible(character, head)) then
-                    nearest, nearestDist = player, d
+                
+                -- ตรวจสอบเงื่อนไข Aim Circle (FOV) ถ้าเปิดใช้งาน
+                if FOVEnabled then
+                    local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                    if onScreen then
+                        local screenPos = Vector2.new(pos.X, pos.Y)
+                        local distFromCenter = (screenPos - screenCenter).Magnitude
+                        if distFromCenter <= FOVRadius then
+                            if d < nearestDist and (not WallCheck or IsVisible(character, head)) then
+                                nearest, nearestDist = player, d
+                            end
+                        end
+                    end
+                else
+                    if d < nearestDist and (not WallCheck or IsVisible(character, head)) then
+                        nearest, nearestDist = player, d
+                    end
                 end
             end
         end
@@ -278,16 +260,6 @@ MainTab:Toggle({
         if not AimEnabled then
             CurrentTarget = nil
         end
-    end
-})
-
-MainTab:Toggle({
-    Title = "Silent Aim",
-    Description = "เปิด/ปิด ระบบ Silent Aim และแสดงปุ่มยิงบนจอ",
-    Default = false,
-    Callback = function(state)
-        SilentAimEnabled = state
-        ShootGui.Enabled = state -- แสดงหรือซ่อนปุ่มยิงตามสถานะ Toggle
     end
 })
 
@@ -318,6 +290,40 @@ MainTab:Slider({
     Increment = 0.05,
     Callback = function(value)
         Smoothness = value
+    end
+})
+
+-- ตั้งค่า Aim Circle (FOV) ใน Tab Combat
+MainTab:Toggle({
+    Title = "Aim Circle (FOV)",
+    Description = "แสดงวงกลมขอบเขตการล็อกเป้าหมายกลางจอ",
+    Default = false,
+    Callback = function(state)
+        FOVEnabled = state
+        FOVCircle.Visible = state
+    end
+})
+
+MainTab:Slider({
+    Title = "Circle Radius",
+    Description = "ปรับขนาดรัศมีของวงกลม FOV",
+    Min = 50,
+    Max = 400,
+    Default = 150,
+    Increment = 5,
+    Callback = function(value)
+        FOVRadius = value
+        FOVCircle.Radius = value
+    end
+})
+
+MainTab:Colorpicker({
+    Title = "Circle Color",
+    Description = "ปรับสีของวงกลม FOV",
+    Default = Color3.fromRGB(255, 255, 255),
+    Callback = function(color)
+        FOVColor = color
+        FOVCircle.Color = color
     end
 })
 
@@ -370,10 +376,17 @@ VisualsTab:Colorpicker({
     end
 })
 
--- ===== อัปเดต ESP + เส้น =====
+-- ===== อัปเดต ESP + เส้น + วงกลม FOV (ทุกเฟรม) =====
 RunService.RenderStepped:Connect(function()
     local Camera = workspace.CurrentCamera
-    if not (ESPEnabled and Camera) then return end
+    if not Camera then return end
+
+    -- อัปเดตตำแหน่งวงกลม FOV ให้อยู่กลางจอเสมอ
+    if FOVEnabled then
+        FOVCircle.Position = Camera.ViewportSize / 2
+    end
+
+    if not ESPEnabled then return end
 
     local viewport = Camera.ViewportSize
     local origin = Vector2.new(viewport.X / 2, viewport.Y)
@@ -430,45 +443,9 @@ RunService:BindToRenderStep("AimLockHead", Enum.RenderPriority.Camera.Value + 1,
     end
 end)
 
--- ===== SILENT AIM (Remote Hook สำหรับส่งพิกัดกระสุน) =====
-pcall(function()
-    local GunAttackEvent = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Remo"):WaitForChild("container"):WaitForChild("GunAttack", 5)
-    if GunAttackEvent then
-        local originalFireServer
-        originalFireServer = hookfunction(GunAttackEvent.FireServer, function(self, data, ...)
-            if SilentAimEnabled and type(data) == "table" and data.hitscan then
-                local target = GetNearestTarget()
-                if target and target.Character and target.Character:FindFirstChild("Head") then
-                    local head = target.Character.Head
-                    local origin = data.hitscan.origin or workspace.CurrentCamera.CFrame.Position
-                    local headPos = head.Position
-                    
-                    data.hitscan.origin = origin
-                    if data.hitscan.rays and data.hitscan.rays[1] then
-                        data.hitscan.rays[1].direction = (headPos - origin).Unit
-                        if data.hitscan.rays[1].hits and data.hitscan.rays[1].hits[1] then
-                            data.hitscan.rays[1].hits[1].part = head
-                            data.hitscan.rays[1].hits[1].position = headPos
-                        else
-                            data.hitscan.rays[1].hits = {
-                                {
-                                    part = head,
-                                    position = headPos
-                                }
-                            }
-                        end
-                    end
-                    data.aimPoint = headPos
-                end
-            end
-            return originalFireServer(self, data, ...)
-        end)
-    end
-end)
-
 -- แจ้งเตือนเมื่อโหลดสำเร็จ
 WindUI:Notify({
     Title = "Script Loaded",
-    Content = "Silent Aim Toggle & Shoot Button Ready!",
+    Content = "Aim Circle (FOV) Ready!",
     Duration = 3,
 })
