@@ -1,24 +1,21 @@
 -- โหลด WindUI Library
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
--- สร้างหน้าต่าง UI (Window)
 local Window = WindUI:CreateWindow({
-    Title = "Auto Farm Hub",
+    Title = "Auto Farm Hub [Debug Mode]",
     Icon = "rbxassetid://10723407389",
     Author = "WindUI User",
-    Folder = "AutoBuySellFolder",
+    Folder = "AutoBuySellFolderDebug",
     Size = UDim2.fromOffset(580, 460),
     Transparent = true,
     Theme = "Dark",
 })
 
--- สร้าง Tab หลัก
 local Tab = Window:Tab({
     Title = "Main",
     Icon = "rbxassetid://10723407389"
 })
 
--- บริการและ Remote Events
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -28,48 +25,56 @@ local events = ReplicatedStorage:WaitForChild("Events")
 local sellStrengthEvent = events:WaitForChild("SellStrength")
 local uiActionRemote = events:WaitForChild("UIAction")
 
--- สถานะการทำงาน
 local featuresActive = false
 
--- สร้าง Toggle ใน WindUI เพื่อเปิด/ปิดฟังก์ชัน
+-- สร้าง Toggle ใน WindUI
 Tab:Toggle({
-    Title = "Auto Features (Sell & Buy)",
-    Description = "เปิด/ปิด ออโต้ขายพลัง และซื้อไอเทมที่ดีที่สุดอัตโนมัติ",
+    Title = "Auto Features (เปิดเพื่อเช็ค F9)",
+    Description = "เปิด/ปิด ระบบและพิมพ์ Log ออก F9 Console",
     Default = false,
     Callback = function(State)
         featuresActive = State
+        print("-> สถานะ Auto เปลี่ยนเป็น:", State)
     end
 })
 
--- 1. ลูปสำหรับออโต้ขาย
+-- 1. Auto-Sell Loop
 task.spawn(function()
     while true do
         if featuresActive then
-            pcall(function()
+            print("-> กำลังส่งคำสั่งขาย (SellStrength)...")
+            local success, err = pcall(function()
                 sellStrengthEvent:FireServer()
             end)
+            if not success then
+                warn("-> ขายไม่สำเร็จ Error:", err)
+            end
         end
-        task.wait(1) -- ปรับความเร็วในการขาย (วินาที)
+        task.wait(1)
     end
 end)
 
--- 2. ลูปสำหรับออโต้ซื้อ (Sabers, DNA, Classes)
+-- 2. Auto-Buy Loop
 task.spawn(function()
     while true do
         if featuresActive then
-            pcall(function()
+            print("-> กำลังส่งคำสั่งซื้อ (BuyBestSaber, DNA, Class)...")
+            local success, err = pcall(function()
+                -- ลองเปลี่ยนเป็น InvokeServer ถ้าเกมนี้ใช้ RemoteFunction
                 uiActionRemote:FireServer("BuyBestSaber")
                 uiActionRemote:FireServer("BuyBestDNA")
                 uiActionRemote:FireServer("BuyBestClass")
             end)
+            if not success then
+                warn("-> ซื้อไม่สำเร็จ Error:", err)
+            end
         end
-        task.wait(2) -- ปรับความเร็วในการซื้อ (วินาที)
+        task.wait(2)
     end
 end)
 
--- แจ้งเตือนเมื่อโหลดสคริปต์สำเร็จ
 WindUI:Notify({
-    Title = "Script Loaded",
-    Content = "WindUI Auto Buy & Sell initialized successfully!",
+    Title = "Debug Loaded",
+    Content = "เปิด F9 เพื่อดู Log การทำงานได้เลยครับ",
     Duration = 3
 })
