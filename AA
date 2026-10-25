@@ -4,14 +4,16 @@ if game.PlaceId ~= 3823781113 then
 end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 
--- ดึง Remote Events
+-- ดึง Remote Events หลัก
 local Events = ReplicatedStorage:WaitForChild("Events")
 local SwingSaberRemote = Events:WaitForChild("SwingSaber")
 local SellStrengthRemote = Events:WaitForChild("SellStrength")
 local UIActionRemote = Events:WaitForChild("UIAction")
+local CollectCurrencyRemote = Events:WaitForChild("CollectCurrencyPickup")
 
 -- ตัวแปรควบคุมสถานะ (Toggles)
 getgenv().AutoClick = false
@@ -19,6 +21,14 @@ getgenv().AutoSell = false
 getgenv().AutoBuySaber = false
 getgenv().AutoBuyDNA = false
 getgenv().AutoBuyClass = false
+
+-- ตัวแปรควบคุมสถานะ Halloween
+getgenv().AutoCollectLollipop = false
+getgenv().AutoAttackBoss = false
+
+--------------------------------------------------------------------------------
+-- 🔹 ลูปทำงานฟังก์ชันหลัก
+--------------------------------------------------------------------------------
 
 -- 1. ระบบ Auto Click (ฟันดาบออโต้)
 task.spawn(function()
@@ -68,20 +78,67 @@ task.spawn(function()
     end
 end)
 
--- 5. ระบบ Auto Buy Class (ซื้อยศ/คลาสออโต้)
+-- 5. ระบบ Auto Buy Class (ดึงชื่อจาก TextLabel หน้าจอมาซื้อออโต้)
 task.spawn(function()
     while true do
         if getgenv().AutoBuyClass then
             pcall(function()
-                UIActionRemote:FireServer("BuyAllClasses")
+                local className = Player.PlayerGui.MainGui.OtherFrames.Shop.Frames.Classes.InfoFrame.Frame.ItemName.TextLabel.Text
+                if className and className ~= "" then
+                    UIActionRemote:FireServer("BuyClass", className)
+                end
             end)
         end
-        task.wait(2)
+        task.wait(0.5)
     end
 end)
 
--- โหลด WindUI Library
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+--------------------------------------------------------------------------------
+-- 🎃 ลูปทำงานฟังก์ชัน Halloween
+--------------------------------------------------------------------------------
+
+-- 6. ระบบ Auto Collect Lollipop (เก็บอมยิ้มออโต้)
+task.spawn(function()
+    while true do
+        if getgenv().AutoCollectLollipop then
+            pcall(function()
+                local CurrencyHolder = Workspace.Gameplay.RegionsLoaded.HalloweenEvent.CurrencyPickup.CurrencyHolder
+                for _, item in ipairs(CurrencyHolder:GetChildren()) do
+                    if not getgenv().AutoCollectLollipop then break end
+                    
+                    if item.Name == "Lollipop" then
+                        CollectCurrencyRemote:FireServer({ item })
+                        task.wait(0.05)
+                    end
+                end
+            end)
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- 7. ระบบ Auto Attack Boss (ตีบอสฮาโลวีนออโต้)
+task.spawn(function()
+    while true do
+        if getgenv().AutoAttackBoss then
+            pcall(function()
+                local bossFolder = Workspace.Gameplay.RegionsLoaded.HalloweenEvent.Boss.BossHolder
+                local boss = bossFolder:FindFirstChild("Boss")
+                
+                if boss then
+                    SwingSaberRemote:FireServer({ boss })
+                end
+            end)
+        end
+        task.wait(0.1)
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 🎨 สร้างหน้าต่าง UI ด้วย WindUI
+--------------------------------------------------------------------------------
+
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 local Window = WindUI:CreateWindow({
     Title = "Saber Simulator | Pro Hub",
@@ -95,7 +152,7 @@ local Window = WindUI:CreateWindow({
     HasOutline = true,
 })
 
--- สร้าง Tab หลัก
+-- 🏠 Tab 1: ฟังก์ชันหลัก
 local MainTab = Window:Tab({
     Title = "ฟังก์ชันหลัก",
     Icon = "home",
@@ -105,7 +162,6 @@ MainTab:Section({
     Title = "ระบบฟาร์มและอัปเกรดออโต้"
 })
 
--- ปุ่มเปิด/ปิด Auto Click
 MainTab:Toggle({
     Title = "Auto Click (ฟันดาบออโต้)",
     Desc = "เปิด/ปิด การฟันดาบอัตโนมัติ",
@@ -115,7 +171,6 @@ MainTab:Toggle({
     end,
 })
 
--- ปุ่มเปิด/ปิด Auto Sell Strength
 MainTab:Toggle({
     Title = "Auto Sell Strength (ขายพลังออโต้)",
     Desc = "เปิด/ปิด การนำพลังไปขายอัตโนมัติ",
@@ -126,10 +181,9 @@ MainTab:Toggle({
 })
 
 MainTab:Section({
-    Title = "ระบบซื้อของออโต้ (Fixed)"
+    Title = "ระบบซื้อของออโต้ (Smart Buy)"
 })
 
--- ปุ่มเปิด/ปิด Auto Buy Weapons
 MainTab:Toggle({
     Title = "Auto Buy Weapons (ซื้อดาบออโต้)",
     Desc = "ใช้คำสั่ง BuyAllWeapons",
@@ -139,7 +193,6 @@ MainTab:Toggle({
     end,
 })
 
--- ปุ่มเปิด/ปิด Auto Buy DNAs
 MainTab:Toggle({
     Title = "Auto Buy DNAs (ซื้อกระเป๋า DNA ออโต้)",
     Desc = "ใช้คำสั่ง BuyAllDNAs",
@@ -149,18 +202,46 @@ MainTab:Toggle({
     end,
 })
 
--- ปุ่มเปิด/ปิด Auto Buy Class
 MainTab:Toggle({
-    Title = "Auto Buy Class (ซื้อคลาส/ยศออโต้)",
-    Desc = "ใช้คำสั่ง BuyAllClasses",
+    Title = "Auto Buy Class (ซื้อคลาสจากหน้าจอออโต้)",
+    Desc = "อ่านชื่อคลาสจากหน้าต่าง Shop มาซื้ออัตโนมัติ",
     Value = false,
     Callback = function(Value)
         getgenv().AutoBuyClass = Value
     end,
 })
 
+-- 🎃 Tab 2: อีเวนต์ Halloween
+local HalloweenTab = Window:Tab({
+    Title = "อีเวนต์ Halloween",
+    Icon = "ghost", -- หรือใช้ไอคอนอื่น เช่น skull / flame
+})
+
+HalloweenTab:Section({
+    Title = "ฟาร์มอีเวนต์ฮาโลวีน"
+})
+
+HalloweenTab:Toggle({
+    Title = "Auto Lollipop (เก็บอมยิ้มออโต้)",
+    Desc = "ดึง Lollipop จากโซนฮาโลวีนมายิงเก็บอัตโนมัติ",
+    Value = false,
+    Callback = function(Value)
+        getgenv().AutoCollectLollipop = Value
+    end,
+})
+
+HalloweenTab:Toggle({
+    Title = "Auto Boss (ตีบอสฮาโลวีนออโต้)",
+    Desc = "ยิง Remote ฟันบอส Halloween ทุกๆ 0.1 วินาที",
+    Value = false,
+    Callback = function(Value)
+        getgenv().AutoAttackBoss = Value
+    end,
+})
+
+-- การแจ้งเตือนเมื่อโหลดสำเร็จ
 WindUI:Notify({
-    Title = "แจ้งเตือน",
-    Content = "โหลดสคริปต์ WindUI (Fixed DNAs) สำเร็จ!",
+    Title = "Saber Simulator Pro Hub",
+    Content = "โหลดสคริปต์ระบบหลัก + อีเวนต์ Halloween สำเร็จ!",
     Duration = 5
 })
