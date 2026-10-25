@@ -21,6 +21,8 @@ getgenv().AutoSell = false
 getgenv().AutoBuySaber = false
 getgenv().AutoBuyDNA = false
 getgenv().AutoBuyClass = false
+getgenv().AutoBuyEgg = false
+getgenv().SelectedEgg = "HD Egg" -- ค่าเริ่มต้นของไข่ที่จะสุ่ม
 
 -- ตัวแปรควบคุมสถานะ Halloween
 getgenv().AutoCollectLollipop = false
@@ -93,11 +95,25 @@ task.spawn(function()
     end
 end)
 
+-- 6. ระบบ Auto Buy Egg (สุ่มไข่อัตโนมัติ)
+task.spawn(function()
+    while true do
+        if getgenv().AutoBuyEgg then
+            pcall(function()
+                if getgenv().SelectedEgg and getgenv().SelectedEgg ~= "" then
+                    UIActionRemote:FireServer("BuyEgg", getgenv().SelectedEgg)
+                end
+            end)
+        end
+        task.wait(0.5) -- ปรับหน่วงเวลาเปิดไข่ตามความเหมาะสม
+    end
+end)
+
 --------------------------------------------------------------------------------
 -- 🎃 ลูปทำงานฟังก์ชัน Halloween
 --------------------------------------------------------------------------------
 
--- 6. ระบบ Auto Collect Lollipop (เก็บอมยิ้มออโต้)
+-- 7. ระบบ Auto Collect Lollipop (เก็บอมยิ้มออโต้)
 task.spawn(function()
     while true do
         if getgenv().AutoCollectLollipop then
@@ -117,7 +133,7 @@ task.spawn(function()
     end
 end)
 
--- 7. ระบบ Auto Attack Boss (ตีบอสฮาโลวีนออโต้)
+-- 8. ระบบ Auto Attack Boss (ตีบอสฮาโลวีนออโต้)
 task.spawn(function()
     while true do
         if getgenv().AutoAttackBoss then
@@ -211,10 +227,29 @@ MainTab:Toggle({
     end,
 })
 
+-- 🥚 ส่วนสุ่มไข่อัตโนมัติ
+MainTab:Dropdown({
+    Title = "เลือกไข่ที่ต้องการสุ่ม",
+    Values = {"HD Egg", "Common Egg", "Uncommon Egg", "Rare Egg", "Legendary Egg"},
+    Default = "HD Egg",
+    Callback = function(Value)
+        getgenv().SelectedEgg = Value
+    end,
+})
+
+MainTab:Toggle({
+    Title = "Auto Buy Egg (สุ่มไข่ออโต้)",
+    Desc = "เปิด/ปิด การสุ่มไข่ประเภทที่เลือกอัตโนมัติ",
+    Value = false,
+    Callback = function(Value)
+        getgenv().AutoBuyEgg = Value
+    end,
+})
+
 -- 🎃 Tab 2: อีเวนต์ Halloween
 local HalloweenTab = Window:Tab({
     Title = "อีเวนต์ Halloween",
-    Icon = "ghost", -- หรือใช้ไอคอนอื่น เช่น skull / flame
+    Icon = "ghost",
 })
 
 HalloweenTab:Section({
@@ -242,6 +277,6 @@ HalloweenTab:Toggle({
 -- การแจ้งเตือนเมื่อโหลดสำเร็จ
 WindUI:Notify({
     Title = "Saber Simulator Pro Hub",
-    Content = "โหลดสคริปต์ระบบหลัก + อีเวนต์ Halloween สำเร็จ!",
+    Content = "โหลดสคริปต์ระบบหลัก + สุ่มไข่ + ฮาโลวีน สำเร็จ!",
     Duration = 5
 })
