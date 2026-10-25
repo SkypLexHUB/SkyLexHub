@@ -223,7 +223,7 @@ for _, p in ipairs(Players:GetPlayers()) do HookPlayer(p) end
 Players.PlayerAdded:Connect(HookPlayer)
 Players.PlayerRemoving:Connect(RemoveESP)
 
--- ===== หาเป้าหมาย (รองรับทั้ง Players และ Model ทั่วไปใน Workspace) =====
+-- ===== หาเป้าหมาย (รองรับ Aim Part: Head หรือ Body) =====
 local function IsVisible(character, part)
     local Camera = workspace.CurrentCamera
     if not Camera then return false end
@@ -241,48 +241,35 @@ local function GetNearestTarget()
     local nearest, nearestDist = nil, math.huge
     local screenCenter = Camera.ViewportSize / 2
 
-    local function CheckCandidate(character)
-        if not character or character == LocalPlayer.Character then return end
-        
-        local hum = character:FindFirstChildOfClass("Humanoid")
-        local targetPart = character:FindFirstChild(SelectedAimPart == "Head" and "Head" or "HumanoidRootPart")
-        
-        if targetPart and hum and hum.Health > 0 then
-            local d = (targetPart.Position - Camera.CFrame.Position).Magnitude
-            
-            if FOVEnabled then
-                local pos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                if onScreen then
-                    local screenPos = Vector2.new(pos.X, pos.Y)
-                    local distFromCenter = (screenPos - screenCenter).Magnitude
-                    if distFromCenter <= FOVRadius then
-                        if d < nearestDist and (not WallCheck or IsVisible(character, targetPart)) then
-                            nearest, nearestDist = targetPart, d
-                        end
-                    end
-                end
-            else
-                if d < nearestDist and (not WallCheck or IsVisible(character, targetPart)) then
-                    nearest, nearestDist = targetPart, d
-                end
-            end
-        end
-    end
-
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            CheckCandidate(player.Character)
-        end
-    end
-
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") then
-            if not LocalPlayer.Character or not obj:IsAncestorOf(LocalPlayer.Character) then
-                CheckCandidate(obj)
+            local character = player.Character
+            -- เลือกส่วนที่จะล็อกตามที่ผู้เล่นเลือกใน Dropdown (Head หรือ HumanoidRootPart)
+            local targetPart = character and character:FindFirstChild(SelectedAimPart == "Head" and "Head" or "HumanoidRootPart")
+            local hum = character and character:FindFirstChildOfClass("Humanoid")
+            
+            if targetPart and hum and hum.Health > 0 then
+                local d = (targetPart.Position - Camera.CFrame.Position).Magnitude
+                
+                if FOVEnabled then
+                    local pos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                    if onScreen then
+                        local screenPos = Vector2.new(pos.X, pos.Y)
+                        local distFromCenter = (screenPos - screenCenter).Magnitude
+                        if distFromCenter <= FOVRadius then
+                            if d < nearestDist and (not WallCheck or IsVisible(character, targetPart)) then
+                                nearest, nearestDist = player, d
+                            end
+                        end
+                    end
+                else
+                    if d < nearestDist and (not WallCheck or IsVisible(character, targetPart)) then
+                        nearest, nearestDist = player, d
+                    end
+                end
             end
         end
     end
-
     return nearest
 end
 
@@ -300,6 +287,7 @@ MainTab:Toggle({
     end
 })
 
+-- เพิ่ม Dropdown สำหรับเลือกส่วนที่จะล็อก (Head / Body)
 MainTab:Dropdown({
     Title = "Aim Part",
     Description = "เลือกส่วนที่ต้องการให้ล็อกเป้าหมาย",
@@ -362,6 +350,7 @@ MainTab:Slider({
     end
 })
 
+-- ตั้งค่า Aim Circle (FOV) ใน Tab Combat
 MainTab:Toggle({
     Title = "Aim Circle (FOV)",
     Description = "แสดงวงกลมขอบเขตการล็อกเป้าหมายกลางจอ",
@@ -452,14 +441,18 @@ RunService.RenderStepped:Connect(function()
 
     local viewportCenter = Camera.ViewportSize / 2
 
+    -- อัปเดตตำแหน่งวงกลม FOV
     if FOVEnabled then
         FOVCircle.Position = viewportCenter
     end
 
+    -- อัปเดตเป้าเล็ง ShiftLock กลางจอ (พร้อมลูกเล่นการหมุนตัววงกลมแบบเท่ๆ)
     if ShiftLockEnabled then
         rotAngle = (rotAngle + 2) % 360
         ShiftLockOuter.Position = viewportCenter
         ShiftLockDot.Position = viewportCenter
+        
+        -- ทำอนูเมชันขยาย/หดเล็กน้อยตามจังหวะเวลา
         ShiftLockOuter.Radius = 22 + math.sin(tick() * 5) * 3
     end
 
@@ -498,18 +491,21 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ===== ล็อกกล้องที่เป้าหมาย (Aim Assist & ShiftLock) =====
+-- ===== ล็อกกล้องที่ส่วนที่เลือก (Aim Assist & ShiftLock) =====
 RunService:BindToRenderStep("AimLockHead", Enum.RenderPriority.Camera.Value + 1, function()
     if not (AimEnabled or ShiftLockEnabled) then return end
     local Camera = workspace.CurrentCamera
     if not Camera then return end
 
-    local targetPart = GetNearestTarget()
+    CurrentTarget = GetNearestTarget()
+    local targetPart = CurrentTarget
+        and CurrentTarget.Character
+        and CurrentTarget.Character:FindFirstChild(SelectedAimPart == "Head" and "Head" or "HumanoidRootPart")
 
     if targetPart then
         local goal = CFrame.lookAt(Camera.CFrame.Position, targetPart.Position)
         if InstantSnap or ShiftLockEnabled then
-            Camera.CFrame = goal
+            Camera.CFrame = goal -- ดีดล็อกเน้นๆ แบบโหดๆ
         else
             Camera.CFrame = Camera.CFrame:Lerp(goal, Smoothness)
         end
@@ -519,6 +515,6 @@ end)
 -- แจ้งเตือนเมื่อโหลดสำเร็จ
 WindUI:Notify({
     Title = "Script Loaded",
-    Content = "Fixed & Ready to Use!",
+    Content = "Aim Part Selector Added & Ready!",
     Duration = 3,
 })
