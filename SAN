@@ -23,7 +23,7 @@ local currentStage = 1
 local currentDna = 1
 local currentWeightIndex = 1
 
--- ข้อมูลรายการอุปกรณ์ยกน้ำหนักทั้งหมด (ครบ 120 ชิ้นจากไฟล์ของคุณ)[span_1](start_span)[span_1](end_span)
+-- ข้อมูลรายการอุปกรณ์ยกน้ำหนักทั้งหมด (ครบ 120 ชิ้น)
 local weightsTable = {
     [1] = {["Image"] = "rbxassetid://11827170308", ["Name"] = "Pencil", ["Price"] = 0, ["MuscleGain"] = 1, ["ToolName"] = "Pencil"},
     [2] = {["Image"] = "rbxassetid://11827174111", ["Name"] = "Stick", ["Price"] = 15, ["MuscleGain"] = 2, ["ToolName"] = "Stick"},
@@ -147,7 +147,7 @@ local weightsTable = {
     [120] = {["Image"] = "rbxassetid://90040909997612", ["Name"] = "Dumbbell", ["Price"] = 99, ["donate"] = true, ["MuscleGain"] = 50, ["ToolName"] = "Dumbbell"}
 }
 
--- ฟังชั่นที่ 1: Auto ยกน้ำหนัก (คูลดาวน์ 0.1)
+-- ฟังก์ชันที่ 1: Auto ยกน้ำหนัก
 task.spawn(function()
     while true do
         if autoLiftEnabled then
@@ -167,7 +167,7 @@ Tab:Toggle({
     end
 })
 
--- ฟังชั่นที่ 2: Auto Sell (ขายกล้ามเนื้อ)
+-- ฟังก์ชันที่ 2: Auto Sell (ขายกล้ามเนื้อ)
 task.spawn(function()
     while true do
         if autoSellEnabled then
@@ -175,7 +175,7 @@ task.spawn(function()
                 game:GetService("ReplicatedStorage").Events.SellMuscle:InvokeServer()
             end)
         end
-        task.wait(1)
+        task.wait(1.5)
     end
 end)
 
@@ -187,17 +187,21 @@ Tab:Toggle({
     end
 })
 
--- ฟังชั่นที่ 3: Auto Buy Next Stage (ซื้อสเตจ)
+-- ฟังก์ชันที่ 3: Auto Buy Next Stage (ซื้อสเตจ) -> เมื่อซื้อสเตจใหม่ จะรีเซ็ต DNA และ Weight กลับเป็น 1 ตามระบบเกม
 task.spawn(function()
     while true do
         if autoStageEnabled then
             pcall(function()
                 game:GetService("ReplicatedStorage").Events.BuyStage:InvokeServer(currentStage)
-                currentStage = currentStage + 1
-                if currentStage > 50 then currentStage = 1 end
+                if currentStage < 50 then
+                    currentStage = currentStage + 1
+                    -- ตามระบบเกม: พอขึ้น Stage ใหม่ น้ำหนักและ DNA จะถูกรีเซ็ตกลับเป็น 1
+                    currentDna = 1
+                    currentWeightIndex = 1
+                end
             end)
         end
-        task.wait(2)
+        task.wait(2.5)
     end
 end)
 
@@ -209,17 +213,18 @@ Tab:Toggle({
     end
 })
 
--- ฟังชั่นที่ 4: Auto Buy DNA (ซื้อดีเอ็นเอ)
+-- ฟังก์ชันที่ 4: Auto Buy DNA (ซื้อดีเอ็นเอ)
 task.spawn(function()
     while true do
         if autoDnaEnabled then
             pcall(function()
                 game:GetService("ReplicatedStorage").Events.BuyDnk:InvokeServer(currentDna)
-                currentDna = currentDna + 1
-                if currentDna > 50 then currentDna = 1 end
+                if currentDna < 50 then
+                    currentDna = currentDna + 1
+                end
             end)
         end
-        task.wait(2)
+        task.wait(2.5)
     end
 end)
 
@@ -231,17 +236,18 @@ Tab:Toggle({
     end
 })
 
--- ฟังชั่นที่ 5: Auto Buy Weight (ซื้ออุปกรณ์ยกน้ำหนัก ครบทั้ง 120 ชิ้น)
+-- ฟังก์ชันที่ 5: Auto Buy Weight (ซื้ออุปกรณ์ยกน้ำหนัก ครบทั้ง 120 ชิ้น)
 task.spawn(function()
     while true do
         if autoWeightEnabled then
             pcall(function()
                 game:GetService("ReplicatedStorage").Events.BuyWeight:InvokeServer(currentWeightIndex, weightsTable, "Weights")
-                currentWeightIndex = currentWeightIndex + 1
-                if currentWeightIndex > #weightsTable then currentWeightIndex = 1 end
+                if currentWeightIndex < #weightsTable then
+                    currentWeightIndex = currentWeightIndex + 1
+                end
             end)
         end
-        task.wait(2)
+        task.wait(2.5)
     end
 end)
 
