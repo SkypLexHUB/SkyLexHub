@@ -1,0 +1,254 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local Window = WindUI:CreateWindow({
+    Title = "Lifting Simulator Reborn",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    Transparent = true,
+})
+
+local Tab = Window:Tab({ Title = "Main", Icon = "dumbbell" })
+
+-- ตัวแปรสถานะฟังก์ชัน (Toggles)
+local autoLiftEnabled = false
+local autoSellEnabled = false
+local autoStageEnabled = false
+local autoDnaEnabled = false
+local autoWeightEnabled = false
+
+-- ตัวแปรระบบเช็คเลเวล/ลำดับขั้น
+local currentStage = 1
+local currentDna = 1
+local currentWeightIndex = 1
+
+-- ข้อมูลรายการอุปกรณ์ยกน้ำหนักทั้งหมด (ครบ 120 ชิ้นจากไฟล์ของคุณ)[span_1](start_span)[span_1](end_span)
+local weightsTable = {
+    [1] = {["Image"] = "rbxassetid://11827170308", ["Name"] = "Pencil", ["Price"] = 0, ["MuscleGain"] = 1, ["ToolName"] = "Pencil"},
+    [2] = {["Image"] = "rbxassetid://11827174111", ["Name"] = "Stick", ["Price"] = 15, ["MuscleGain"] = 2, ["ToolName"] = "Stick"},
+    [3] = {["Image"] = "rbxassetid://11827177430", ["Name"] = "Computer Mouse", ["Price"] = 40, ["MuscleGain"] = 3, ["ToolName"] = "Computer Mouse"},
+    [4] = {["Image"] = "rbxassetid://11827179456", ["Name"] = "Water Bottle", ["Price"] = 90, ["MuscleGain"] = 5, ["ToolName"] = "Water Bottle"},
+    [5] = {["Image"] = "rbxassetid://11827181869", ["Name"] = "Soccer Ball", ["Price"] = 187.5, ["MuscleGain"] = 7, ["ToolName"] = "Soccer Ball"},
+    [6] = {["Image"] = "rbxassetid://138656828833100", ["Name"] = "Bottle", ["Price"] = 315, ["MuscleGain"] = 10, ["ToolName"] = "Bottle"},
+    [7] = {["Image"] = "rbxassetid://11827185790", ["Name"] = "Textbook", ["Price"] = 600, ["MuscleGain"] = 16, ["ToolName"] = "Textbook"},
+    [8] = {["Image"] = "rbxassetid://11827195211", ["Name"] = "Bucket", ["Price"] = 1200, ["MuscleGain"] = 24, ["ToolName"] = "Bucket"},
+    [9] = {["Image"] = "rbxassetid://11827202649", ["Name"] = "Wood", ["Price"] = 2150, ["MuscleGain"] = 33, ["ToolName"] = "Wood"},
+    [10] = {["Image"] = "rbxassetid://11827204640", ["Name"] = "Guitar", ["Price"] = 3475, ["MuscleGain"] = 44, ["ToolName"] = "Guitar"},
+    [11] = {["Image"] = "rbxassetid://11827206489", ["Name"] = "Chair", ["Price"] = 5275, ["MuscleGain"] = 62, ["ToolName"] = "Chair"},
+    [12] = {["Image"] = "rbxassetid://118022306131279", ["Name"] = "Shopping Cart", ["Price"] = 8375, ["MuscleGain"] = 85, ["ToolName"] = "Shopping Cart"},
+    [13] = {["Image"] = "rbxassetid://95603459352152", ["Name"] = "TV", ["Price"] = 12750, ["MuscleGain"] = 110, ["ToolName"] = "TV"},
+    [14] = {["Image"] = "rbxassetid://11827212114", ["Name"] = "Bicycle", ["Price"] = 19800, ["MuscleGain"] = 140, ["ToolName"] = "Bicycle"},
+    [15] = {["Image"] = "rbxassetid://11827214614", ["Name"] = "Desk", ["Price"] = 29250, ["MuscleGain"] = 185, ["ToolName"] = "Desk"},
+    [16] = {["Image"] = "rbxassetid://11827216432", ["Name"] = "Bed", ["Price"] = 44250, ["MuscleGain"] = 280, ["ToolName"] = "Bed"},
+    [17] = {["Image"] = "rbxassetid://11827219062", ["Name"] = "Log", ["Price"] = 75500, ["MuscleGain"] = 370, ["ToolName"] = "Log"},
+    [18] = {["Image"] = "rbxassetid://11827220339", ["Name"] = "Canoe", ["Price"] = 111000, ["MuscleGain"] = 555, ["ToolName"] = "Canoe"},
+    [19] = {["Image"] = "rbxassetid://11827222938", ["Name"] = "Tyre", ["Price"] = 208000, ["MuscleGain"] = 790, ["ToolName"] = "Tyre"},
+    [20] = {["Image"] = "rbxassetid://13598295735", ["Name"] = "Refrigerator", ["Price"] = 355000, ["MuscleGain"] = 1010, ["ToolName"] = "Refrigerator"},
+    [21] = {["Image"] = "rbxassetid://11827226246", ["Name"] = "Drum", ["Price"] = 1212000, ["MuscleGain"] = 1550, ["ToolName"] = "Drum"},
+    [22] = {["Image"] = "rbxassetid://11827228206", ["Name"] = "Hydrant", ["Price"] = 2325000, ["MuscleGain"] = 2240, ["ToolName"] = "Hydrant"},
+    [23] = {["Image"] = "rbxassetid://11827231941", ["Name"] = "Piano", ["Price"] = 4025000, ["MuscleGain"] = 4090, ["ToolName"] = "Piano"},
+    [24] = {["Image"] = "rbxassetid://11827234377", ["Name"] = "Motorcycle", ["Price"] = 9825000, ["MuscleGain"] = 6300, ["ToolName"] = "Motorcycle"},
+    [25] = {["Image"] = "rbxassetid://11827236075", ["Name"] = "Safe", ["Price"] = 18925000, ["MuscleGain"] = 8450, ["ToolName"] = "Safe"},
+    [26] = {["Image"] = "rbxassetid://11827237954", ["Name"] = "Flag", ["Price"] = 30255000, ["MuscleGain"] = 10000, ["ToolName"] = "Flag"},
+    [27] = {["Image"] = "rbxassetid://11827240161", ["Name"] = "ATM", ["Price"] = 105005000, ["MuscleGain"] = 16100, ["ToolName"] = "ATM"},
+    [28] = {["Image"] = "rbxassetid://11827244617", ["Name"] = "RX-7", ["Price"] = 193205000, ["MuscleGain"] = 25200, ["ToolName"] = "RX-7"},
+    [29] = {["Image"] = "rbxassetid://11967598684", ["Name"] = "EVO", ["Price"] = 340005000, ["MuscleGain"] = 36300, ["ToolName"] = "EVO"},
+    [30] = {["Image"] = "rbxassetid://11827247824", ["Name"] = "G-Class", ["Price"] = 570005000, ["MuscleGain"] = 49400, ["ToolName"] = "G-Class"},
+    [31] = {["Image"] = "rbxassetid://13599414052", ["Name"] = "Van", ["Price"] = 887505000, ["MuscleGain"] = 69500, ["ToolName"] = "Van"},
+    [32] = {["Image"] = "rbxassetid://11827250528", ["Name"] = "Tree", ["Price"] = 5349005000, ["MuscleGain"] = 95590, ["ToolName"] = "Tree"},
+    [33] = {["Image"] = "rbxassetid://11827251965", ["Name"] = "Container", ["Price"] = 8175005000, ["MuscleGain"] = 142590, ["ToolName"] = "Container"},
+    [34] = {["Image"] = "rbxassetid://11827254210", ["Name"] = "Sailboat", ["Price"] = 13405005000, ["MuscleGain"] = 191800, ["ToolName"] = "Sailboat"},
+    [35] = {["Image"] = "rbxassetid://11827255927", ["Name"] = "Bus", ["Price"] = 19675005000, ["MuscleGain"] = 260800, ["ToolName"] = "Bus"},
+    [36] = {["Image"] = "rbxassetid://11967970665", ["Name"] = "Truck", ["Price"] = 29000000000, ["MuscleGain"] = 341000, ["ToolName"] = "Truck"},
+    [37] = {["Image"] = "rbxassetid://11827265573", ["Name"] = "Windmill", ["Price"] = 212000000000, ["MuscleGain"] = 465000, ["ToolName"] = "Windmill"},
+    [38] = {["Image"] = "rbxassetid://12433017433", ["Name"] = "Jet", ["Price"] = 310000000000, ["MuscleGain"] = 623000, ["ToolName"] = "Jet"},
+    [39] = {["Image"] = "rbxassetid://11827267706", ["Name"] = "Tank", ["Price"] = 442000000000, ["MuscleGain"] = 794000, ["ToolName"] = "Tank"},
+    [40] = {["Image"] = "rbxassetid://11827270729", ["Name"] = "Transport Helicopter", ["Price"] = 600000000000, ["MuscleGain"] = 1000000, ["ToolName"] = "Transport Helicopter"},
+    [41] = {["Image"] = "rbxassetid://11456759625", ["Name"] = "Battleship", ["Price"] = 5390000000000, ["MuscleGain"] = 1310000, ["ToolName"] = "Battleship"},
+    [42] = {["Image"] = "rbxassetid://113755881509564", ["Name"] = "Spaceship", ["Price"] = 8240000000000, ["MuscleGain"] = 1700000, ["ToolName"] = "Spaceship"},
+    [43] = {["Image"] = "rbxassetid://11456919649", ["Name"] = "Speaker", ["Price"] = 12190000000000, ["MuscleGain"] = 2210000, ["ToolName"] = "Speaker"},
+    [44] = {["Image"] = "rbxassetid://11456945780", ["Name"] = "Anchor", ["Price"] = 17900000000000, ["MuscleGain"] = 2880000, ["ToolName"] = "Anchor"},
+    [45] = {["Image"] = "rbxassetid://11457067223", ["Name"] = "Old House", ["Price"] = 25800000000000, ["MuscleGain"] = 3740000, ["ToolName"] = "Old House"},
+    [46] = {["Image"] = "rbxassetid://11457103155", ["Name"] = "Building", ["Price"] = 222800000000000, ["MuscleGain"] = 4860000, ["ToolName"] = "Building"},
+    [47] = {["Image"] = "rbxassetid://11827273208", ["Name"] = "Toxic Tank", ["Price"] = 315800000000000, ["MuscleGain"] = 6320000, ["ToolName"] = "Toxic Tank"},
+    [48] = {["Image"] = "rbxassetid://11827274492", ["Name"] = "Rocket", ["Price"] = 444800000000000, ["MuscleGain"] = 8220000, ["ToolName"] = "Rocket"},
+    [49] = {["Image"] = "rbxassetid://15177911367", ["Name"] = "Castle", ["Price"] = 621800000000000, ["MuscleGain"] = 10620000, ["ToolName"] = "Castle"},
+    [50] = {["Image"] = "rbxassetid://11458067700", ["Name"] = "Torpedo", ["Price"] = 925800000000000, ["MuscleGain"] = 13920000, ["ToolName"] = "Torpedo"},
+    [51] = {["Image"] = "rbxassetid://11827285512", ["Name"] = "Signal Tower", ["Price"] = 8555800000000000, ["MuscleGain"] = 17920000, ["ToolName"] = "Signal Tower"},
+    [52] = {["Image"] = "rbxassetid://13599514946", ["Name"] = "Stone Altar", ["Price"] = 12355800000000000, ["MuscleGain"] = 23320000, ["ToolName"] = "Stone Altar"},
+    [53] = {["Image"] = "rbxassetid://12356924773", ["Name"] = "UFO", ["Price"] = 17655800000000000, ["MuscleGain"] = 30020000, ["ToolName"] = "UFO"},
+    [54] = {["Image"] = "rbxassetid://11458275680", ["Name"] = "Ancient Place", ["Price"] = 24689800000000000, ["MuscleGain"] = 40020000, ["ToolName"] = "Ancient Place"},
+    [55] = {["Image"] = "rbxassetid://11458302871", ["Name"] = "Pyramid", ["Price"] = 38689800000000000, ["MuscleGain"] = 51020000, ["ToolName"] = "Pyramid"},
+    [56] = {["Image"] = "rbxassetid://12356928328", ["Name"] = "Canyon Mt", ["Price"] = 471689800000000000, ["MuscleGain"] = 66020000, ["ToolName"] = "Canyon Mt"},
+    [57] = {["Image"] = "rbxassetid://12356930740", ["Name"] = "Mountain", ["Price"] = 680689800000000000, ["MuscleGain"] = 88020000, ["ToolName"] = "Mountain"},
+    [58] = {["Image"] = "rbxassetid://12439575712", ["Name"] = "Volcano", ["Price"] = 1000689800000000000, ["MuscleGain"] = 110020000, ["ToolName"] = "Volcano"},
+    [59] = {["Image"] = "rbxassetid://11827288330", ["Name"] = "Mt. Fuji", ["Price"] = 1379689800000000000, ["MuscleGain"] = 150020000, ["ToolName"] = "Mt. Fuji"},
+    [60] = {["Image"] = "rbxassetid://11827290610", ["Name"] = "Meteorite", ["Price"] = 2060689800000000000, ["MuscleGain"] = 191020000, ["ToolName"] = "Meteorite"},
+    [61] = {["Image"] = "rbxassetid://11827293210", ["Name"] = "Moon", ["Price"] = 36900089800000000000, ["MuscleGain"] = 250020000, ["ToolName"] = "Moon"},
+    [62] = {["Image"] = "rbxassetid://11827297027", ["Name"] = "Mercury", ["Price"] = 55500089800000000000, ["MuscleGain"] = 323020000, ["ToolName"] = "Mercury"},
+    [63] = {["Image"] = "rbxassetid://11485876824", ["Name"] = "Mars", ["Price"] = 84400089800000000000, ["MuscleGain"] = 420020000, ["ToolName"] = "Mars"},
+    [64] = {["Image"] = "rbxassetid://11827300814", ["Name"] = "Saturn", ["Price"] = 125000089800000000000, ["MuscleGain"] = 550020000, ["ToolName"] = "Saturn"},
+    [65] = {["Image"] = "rbxassetid://11827303698", ["Name"] = "Jupiter", ["Price"] = 199000089800000000000, ["MuscleGain"] = 718020000, ["ToolName"] = "Jupiter"},
+    [66] = {["Image"] = "rbxassetid://12357314008", ["Name"] = "Super Saturn", ["Price"] = 3.7000000898e+21, ["MuscleGain"] = 1770020000, ["ToolName"] = "Super Saturn"},
+    [67] = {["Image"] = "rbxassetid://15208576593", ["Name"] = "Sedna Bar", ["Price"] = 1.01900000898e+22, ["MuscleGain"] = 4150020000, ["ToolName"] = "Sedna Bar"},
+    [68] = {["Image"] = "rbxassetid://12357332324", ["Name"] = "Sun", ["Price"] = 2.68000000898e+22, ["MuscleGain"] = 9990020000, ["ToolName"] = "Sun"},
+    [69] = {["Image"] = "rbxassetid://15233378141", ["Name"] = "Mini Galaxy", ["Price"] = 1.4268000000898e+24, ["MuscleGain"] = 23890020000, ["ToolName"] = "Mini Galaxy"},
+    [70] = {["Image"] = "rbxassetid://15233388146", ["Name"] = "Earth Bar", ["Price"] = 3.7108000000898e+24, ["MuscleGain"] = 57890020000, ["ToolName"] = "Earth Bar"},
+    [71] = {["Image"] = "rbxassetid://15233395395", ["Name"] = "Black Hole", ["Price"] = 9.5568000000898e+24, ["MuscleGain"] = 139890020000, ["ToolName"] = "Black Hole"},
+    [72] = {["Image"] = "rbxassetid://11843195260", ["Name"] = "Four Dimensions", ["Price"] = 6.268568000000898e+26, ["MuscleGain"] = 329890020000, ["ToolName"] = "Four Dimensions"},
+    [73] = {["Image"] = "rbxassetid://11843199119", ["Name"] = "Sun Bar", ["Price"] = 1.5908568000000897e+27, ["MuscleGain"] = 790890020000, ["ToolName"] = "Sun Bar"},
+    [74] = {["Image"] = "rbxassetid://12555012758", ["Name"] = "Holy Star", ["Price"] = 4.0498568000000896e+27, ["MuscleGain"] = 1889890020000, ["ToolName"] = "Holy Star"},
+    [75] = {["Image"] = "rbxassetid://12571179207", ["Name"] = "Meteoroids Ring", ["Price"] = 3.1140085680000007e+29, ["MuscleGain"] = 4559890020000, ["ToolName"] = "Meteoroids Ring"},
+    [76] = {["Image"] = "rbxassetid://12576381860", ["Name"] = "Meteor Bar", ["Price"] = 7.980008568000001e+29, ["MuscleGain"] = 11009890020000, ["ToolName"] = "Meteor Bar"},
+    [77] = {["Image"] = "rbxassetid://12576390537", ["Name"] = "Water Sphere", ["Price"] = 2.0200008568e+30, ["MuscleGain"] = 26209890020000, ["ToolName"] = "Water Sphere"},
+    [78] = {["Image"] = "rbxassetid://12576482223", ["Name"] = "Super Meteorite", ["Price"] = 1.790004008568e+32, ["MuscleGain"] = 62909890020000, ["ToolName"] = "Super Meteorite"},
+    [79] = {["Image"] = "rbxassetid://12576511053", ["Name"] = "Cross Stars", ["Price"] = 4.557604008568e+32, ["MuscleGain"] = 150909890020000, ["ToolName"] = "Cross Stars"},
+    [80] = {["Image"] = "rbxassetid://12605028192", ["Name"] = "Fiery Star", ["Price"] = 1.0557604008568e+33, ["MuscleGain"] = 362909890020000, ["ToolName"] = "Fiery Star"},
+    [81] = {["Image"] = "rbxassetid://12605201019", ["Name"] = "Super Venus", ["Price"] = 1.150557604008568e+35, ["MuscleGain"] = 855909890020000, ["ToolName"] = "Super Venus"},
+    [82] = {["Image"] = "rbxassetid://12605221627", ["Name"] = "Atomic Suns", ["Price"] = 2.780557604008568e+35, ["MuscleGain"] = 2085909890020000, ["ToolName"] = "Atomic Suns"},
+    [83] = {["Image"] = "rbxassetid://12605329723", ["Name"] = "Lightning Cube", ["Price"] = 7.050057604008568e+35, ["MuscleGain"] = 5005909890020000, ["ToolName"] = "Lightning Cube"},
+    [84] = {["Image"] = "rbxassetid://12610262627", ["Name"] = "Atmosphere", ["Price"] = 8.100000576040085e+37, ["MuscleGain"] = 12005909890020000, ["ToolName"] = "Atmosphere"},
+    [85] = {["Image"] = "rbxassetid://12610738461", ["Name"] = "Five Dimensions", ["Price"] = 2.0200000576040086e+38, ["MuscleGain"] = 28005909890020000, ["ToolName"] = "Five Dimensions"},
+    [86] = {["Image"] = "rbxassetid://12610777312", ["Name"] = "Space Stone", ["Price"] = 4.990000057604009e+38, ["MuscleGain"] = 69005909890020000, ["ToolName"] = "Space Stone"},
+    [87] = {["Image"] = "rbxassetid://12610899726", ["Name"] = "Universe", ["Price"] = 6.74400000057604e+40, ["MuscleGain"] = 166005909890020000, ["ToolName"] = "Universe"},
+    [88] = {["Image"] = "rbxassetid://12610978919", ["Name"] = "Mind Stone", ["Price"] = 1.714400000057604e+41, ["MuscleGain"] = 399005909890020000, ["ToolName"] = "Mind Stone"},
+    [89] = {["Image"] = "rbxassetid://12611026743", ["Name"] = "Reality Stone", ["Price"] = 4.364400000057604e+41, ["MuscleGain"] = 955005909890020000, ["ToolName"] = "Reality Stone"},
+    [90] = {["Image"] = "rbxassetid://12611079550", ["Name"] = "Soul Stone", ["Price"] = 5.740044000000576e+43, ["MuscleGain"] = 2295005909890020000, ["ToolName"] = "Soul Stone"},
+    [91] = {["Image"] = "rbxassetid://12611195418", ["Name"] = "Time Stone", ["Price"] = 1.5440044000000576e+44, ["MuscleGain"] = 5595005909890020000, ["ToolName"] = "Time Stone"},
+    [92] = {["Image"] = "rbxassetid://12611226887", ["Name"] = "Power Stone", ["Price"] = 4.074004400000058e+44, ["MuscleGain"] = 13195005909890020000, ["ToolName"] = "Power Stone"},
+    [93] = {["Image"] = "rbxassetid://12611334119", ["Name"] = "Cosmo Bar", ["Price"] = 8.200040044e+46, ["MuscleGain"] = 31195005909890020000, ["ToolName"] = "Cosmo Bar"},
+    [94] = {["Image"] = "rbxassetid://12611413446", ["Name"] = "Galaxy Bar", ["Price"] = 2.2600040044e+47, ["MuscleGain"] = 75195005909890020000, ["ToolName"] = "Galaxy Bar"},
+    [95] = {["Image"] = "rbxassetid://12611466834", ["Name"] = "Universe Bar", ["Price"] = 1.07900040044e+48, ["MuscleGain"] = 999519500590989000000, ["ToolName"] = "Universe Bar"},
+    [96] = {["Image"] = "rbxassetid://6116927223", ["Name"] = "Sharkupiter", ["Price"] = 4.8107900040044e+50, ["MuscleGain"] = 2.599519500590989e+21, ["ToolName"] = "Sharkupiter"},
+    [97] = {["Image"] = "rbxassetid://6117402895", ["Name"] = "Giftune", ["Price"] = 1.34907900040044e+51, ["MuscleGain"] = 6.199519500590989e+21, ["ToolName"] = "Giftune"},
+    [98] = {["Image"] = "rbxassetid://6117574753", ["Name"] = "Aurora Way", ["Price"] = 3.54907900040044e+51, ["MuscleGain"] = 1.4499519500590988e+22, ["ToolName"] = "Aurora Way"},
+    [99] = {["Image"] = "rbxassetid://6117630779", ["Name"] = "Eternity", ["Price"] = 4.525490790004004e+53, ["MuscleGain"] = 3.549951950059099e+22, ["ToolName"] = "Eternity"},
+    [100] = {["Image"] = "rbxassetid://6118056941", ["Name"] = "Cashensione", ["Price"] = 1.1925490790004005e+54, ["MuscleGain"] = 7.9499519500591e+22, ["ToolName"] = "Cashensione"},
+    [101] = {["Image"] = "rbxassetid://6118057710", ["Name"] = "Past", ["Price"] = 2.8625490790004005e+54, ["MuscleGain"] = 1.9949951950059098e+23, ["ToolName"] = "Past"},
+    [102] = {["Image"] = "rbxassetid://6118058233", ["Name"] = "Future", ["Price"] = 3.838625490790004e+56, ["MuscleGain"] = 4.55499519500591e+23, ["ToolName"] = "Future"},
+    [103] = {["Image"] = "rbxassetid://6118058977", ["Name"] = "Infection", ["Price"] = 9.338625490790004e+56, ["MuscleGain"] = 1.115499519500591e+24, ["ToolName"] = "Infection"},
+    [104] = {["Image"] = "rbxassetid://6118060132", ["Name"] = "Mutation", ["Price"] = 2.4098625490790005e+57, ["MuscleGain"] = 2.995499519500591e+24, ["ToolName"] = "Mutation"},
+    [105] = {["Image"] = "rbxassetid://6118735658", ["Name"] = "Godly 1st Class", ["Price"] = 2.42409862549079e+59, ["MuscleGain"] = 6.665499519500591e+24, ["ToolName"] = "Godly 1st Class"},
+    [106] = {["Image"] = "rbxassetid://6118736060", ["Name"] = "Godly 2nd Class", ["Price"] = 8.03409862549079e+59, ["MuscleGain"] = 1.555499519500591e+25, ["ToolName"] = "Godly 2nd Class"},
+    [107] = {["Image"] = "rbxassetid://6118736391", ["Name"] = "Godly 3rd Class", ["Price"] = 1.963409862549079e+60, ["MuscleGain"] = 3.695499519500591e+25, ["ToolName"] = "Godly 3rd Class"},
+    [108] = {["Image"] = "rbxassetid://6118736722", ["Name"] = "Godly 4th Class", ["Price"] = 2.790634098625491e+62, ["MuscleGain"] = 8.995499519500591e+25, ["ToolName"] = "Godly 4th Class"},
+    [109] = {["Image"] = "rbxassetid://6118737032", ["Name"] = "Godly 5th Class", ["Price"] = 7.110634098625491e+62, ["MuscleGain"] = 2.3295499519500592e+26, ["ToolName"] = "Godly 5th Class"},
+    [110] = {["Image"] = "rbxassetid://6118806814", ["Name"] = "Godly 6th Class", ["Price"] = 1.909063409862549e+63, ["MuscleGain"] = 5.159549951950059e+26, ["ToolName"] = "Godly 6th Class"},
+    [111] = {["Image"] = "rbxassetid://6118982215", ["Name"] = "Godly 7th Class", ["Price"] = 2.2100906340986256e+65, ["MuscleGain"] = 1.255954995195006e+27, ["ToolName"] = "Godly 7th Class"},
+    [112] = {["Image"] = "rbxassetid://6118982635", ["Name"] = "Godly 8th Class", ["Price"] = 5.990090634098626e+65, ["MuscleGain"] = 2.995954995195006e+27, ["ToolName"] = "Godly 8th Class"},
+    [113] = {["Image"] = "rbxassetid://6119020469", ["Name"] = "Godly 9th Class", ["Price"] = 1.5500090634098626e+66, ["MuscleGain"] = 9.995954995195006e+27, ["ToolName"] = "Godly 9th Class"},
+    [114] = {["Image"] = "rbxassetid://8387720885", ["Name"] = "1ST SUPER CLASS", ["Price"] = 3.3490090634098625e+69, ["MuscleGain"] = 5.5995954995195005e+28, ["ToolName"] = "1ST SUPER CLASS"},
+    [115] = {["Image"] = "rbxassetid://8386896594", ["Name"] = "2ND SUPER CLASS", ["Price"] = 2.1349009063409864e+70, ["MuscleGain"] = 3.00995954995195e+29, ["ToolName"] = "2ND SUPER CLASS"},
+    [116] = {["Image"] = "rbxassetid://8386896254", ["Name"] = "3RD SUPER CLASS", ["Price"] = 1.2834900906340987e+71, ["MuscleGain"] = 1.660995954995195e+30, ["ToolName"] = "3RD SUPER CLASS"},
+    [117] = {["Image"] = "rbxassetid://8381944324", ["Name"] = "4TH SUPER CLASS", ["Price"] = 7.993490090634099e+71, ["MuscleGain"] = 9.150995954995195e+30, ["ToolName"] = "4TH SUPER CLASS"},
+    [118] = {["Image"] = "rbxassetid://8381944705", ["Name"] = "5TH SUPER CLASS", ["Price"] = 5.25034900906341e+72, ["MuscleGain"] = 5.005099595499519e+31, ["ToolName"] = "5TH SUPER CLASS"},
+    [119] = {["Image"] = "rbxassetid://8381945294", ["Name"] = "6TH SUPER CLASS", ["Price"] = 3.355034900906341e+73, ["MuscleGain"] = 2.7705099595499518e+32, ["ToolName"] = "6TH SUPER CLASS"},
+    [120] = {["Image"] = "rbxassetid://90040909997612", ["Name"] = "Dumbbell", ["Price"] = 99, ["donate"] = true, ["MuscleGain"] = 50, ["ToolName"] = "Dumbbell"}
+}
+
+-- ฟังชั่นที่ 1: Auto ยกน้ำหนัก (คูลดาวน์ 0.1)
+task.spawn(function()
+    while true do
+        if autoLiftEnabled then
+            pcall(function()
+                game:GetService("ReplicatedStorage").Events.l:FireServer()
+            end)
+        end
+        task.wait(0.1)
+    end
+end)
+
+Tab:Toggle({
+    Title = "Auto ยกน้ำหนัก",
+    Default = false,
+    Callback = function(Value)
+        autoLiftEnabled = Value
+    end
+})
+
+-- ฟังชั่นที่ 2: Auto Sell (ขายกล้ามเนื้อ)
+task.spawn(function()
+    while true do
+        if autoSellEnabled then
+            pcall(function()
+                game:GetService("ReplicatedStorage").Events.SellMuscle:InvokeServer()
+            end)
+        end
+        task.wait(1)
+    end
+end)
+
+Tab:Toggle({
+    Title = "Auto Sell (ขายกล้ามเนื้อ)",
+    Default = false,
+    Callback = function(Value)
+        autoSellEnabled = Value
+    end
+})
+
+-- ฟังชั่นที่ 3: Auto Buy Next Stage (ซื้อสเตจ)
+task.spawn(function()
+    while true do
+        if autoStageEnabled then
+            pcall(function()
+                game:GetService("ReplicatedStorage").Events.BuyStage:InvokeServer(currentStage)
+                currentStage = currentStage + 1
+                if currentStage > 50 then currentStage = 1 end
+            end)
+        end
+        task.wait(2)
+    end
+end)
+
+Tab:Toggle({
+    Title = "Auto Buy Next Stage (ซื้อสเตจ)",
+    Default = false,
+    Callback = function(Value)
+        autoStageEnabled = Value
+    end
+})
+
+-- ฟังชั่นที่ 4: Auto Buy DNA (ซื้อดีเอ็นเอ)
+task.spawn(function()
+    while true do
+        if autoDnaEnabled then
+            pcall(function()
+                game:GetService("ReplicatedStorage").Events.BuyDnk:InvokeServer(currentDna)
+                currentDna = currentDna + 1
+                if currentDna > 50 then currentDna = 1 end
+            end)
+        end
+        task.wait(2)
+    end
+end)
+
+Tab:Toggle({
+    Title = "Auto Buy DNA (ซื้อดีเอ็นเอ)",
+    Default = false,
+    Callback = function(Value)
+        autoDnaEnabled = Value
+    end
+})
+
+-- ฟังชั่นที่ 5: Auto Buy Weight (ซื้ออุปกรณ์ยกน้ำหนัก ครบทั้ง 120 ชิ้น)
+task.spawn(function()
+    while true do
+        if autoWeightEnabled then
+            pcall(function()
+                game:GetService("ReplicatedStorage").Events.BuyWeight:InvokeServer(currentWeightIndex, weightsTable, "Weights")
+                currentWeightIndex = currentWeightIndex + 1
+                if currentWeightIndex > #weightsTable then currentWeightIndex = 1 end
+            end)
+        end
+        task.wait(2)
+    end
+end)
+
+Tab:Toggle({
+    Title = "Auto Buy Weight (ซื้ออุปกรณ์ยกน้ำหนัก)",
+    Default = false,
+    Callback = function(Value)
+        autoWeightEnabled = Value
+    end
+})
